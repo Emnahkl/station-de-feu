@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/1etoile.png</file>
+        <file>images/2etoile.png</file>
+        <file>images/3etoile.png</file>
+        <file>images/ajouter.png</file>
+        <file>images/ajoutervolant.png</file>
+        <file>images/alerte.png</file>
+        <file>images/chatboot.png</file>
+        <file>images/faceid.png</file>
+        <file>images/fire.png</file>
+        <file>images/logistc.png</file>
+        <file>images/logo.png</file>
+        <file>images/medic.png</file>
+        <file>images/parametre.png</file>
+        <file>images/qrcode.png</file>
+        <file>images/sidebar.png</file>
+        <file>images/supprimer.png</file>
+    </qresource>
+</RCC>

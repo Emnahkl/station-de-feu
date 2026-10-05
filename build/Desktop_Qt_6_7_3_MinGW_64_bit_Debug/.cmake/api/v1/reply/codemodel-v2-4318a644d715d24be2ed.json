@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-551fbc0520d9e0d2ec01.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "firestation_groupe1",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "firestation_groupe1::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-firestation_groupe1-Debug-885b01c2f6f6e4c376ee.json",
+					"name" : "firestation_groupe1",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "firestation_groupe1_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-firestation_groupe1_autogen-Debug-34cbca3c63f39dc4f8b1.json",
+					"name" : "firestation_groupe1_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "firestation_groupe1_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-firestation_groupe1_autogen_timestamp_deps-Debug-046a3944ede1aca5a247.json",
+					"name" : "firestation_groupe1_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/Rgues/OneDrive/Images/Documents/firestation_groupe1/build/Desktop_Qt_6_7_3_MinGW_64_bit_Debug",
+		"source" : "C:/Users/Rgues/OneDrive/Images/Documents/firestation_groupe1"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}
