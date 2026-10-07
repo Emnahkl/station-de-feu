@@ -1,0 +1,9 @@
+integration_employe_inter - Station de feu (Qt Widgets, Qt 5.15 / Qt 6)
+
+Ouvrir dans Qt Creator : Fichier > Ouvrir un fichier ou projet > integration_employe_inter.pro
+Choisir un kit, puis Compiler et Executer (Ctrl+R).
+
+- Clic sur "Equipe"        -> page Gestion des employes
+- Clic sur "Interventions" -> page Gestion des interventions
+- La sidebar, la barre du haut (recherche, notifications, parametres) et le panneau de droite sont communs.
+- Toutes les images/icones sont dans resources.qrc (aucun chemin disque : tout est integre a l'executable).
