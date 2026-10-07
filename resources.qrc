@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/logo.png</file>
+        <file>images/sidebar_hero.jpg</file>
+        <file>images/ic_home.png</file>
+        <file>images/ic_equipe.png</file>
+        <file>images/ic_vehicule.png</file>
+        <file>images/ic_equipement.png</file>
+        <file>images/ic_intervention.png</file>
+        <file>images/ic_campagne.png</file>
+        <file>images/ic_zone.png</file>
+    </qresource>
+</RCC>
