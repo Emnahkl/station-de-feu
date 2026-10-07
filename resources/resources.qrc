@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>logo.png</file>
+        <file>sidebar_bg.jpg</file>
+    </qresource>
+</RCC>
