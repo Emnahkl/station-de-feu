@@ -1,0 +1,17 @@
+<RCC>
+  <qresource prefix="/">
+    <file>images/logo.png</file>
+    <file>images/sidebar_bg.png</file>
+    <file>icons/add.png</file>
+    <file>icons/avatar.png</file>
+    <file>icons/bell_badge.svg</file>
+    <file>icons/calendar.png</file>
+    <file>icons/delete.png</file>
+    <file>icons/edit.png</file>
+    <file>icons/home.png</file>
+    <file>icons/pdf.png</file>
+    <file>icons/search.png</file>
+    <file>icons/stats.png</file>
+    <file>icons/vehicules.png</file>
+  </qresource>
+</RCC>
