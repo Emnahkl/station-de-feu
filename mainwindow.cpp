@@ -1,10 +1,13 @@
 #include "mainwindow.h"
+#include "menupage.h"
 #include "employespage.h"
 #include "interventionspage.h"
 #include "vehiculespage.h"
 #include "equipementspage.h"
+#include "zonespage.h"
 #include "campagnespage.h"
 
+#include <QAbstractButton>
 #include <QButtonGroup>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -27,7 +30,6 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
     auto *root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
-
     root->addWidget(buildSidebar());
 
     auto *center = new QFrame;
@@ -37,32 +39,55 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
     cl->setSpacing(0);
     cl->addWidget(buildTopBar());
 
+    // Modules proposés dans le menu (même ordre que l'enum Page)
+    const QList<MenuPage::Module> modules = {
+        {Interventions, tr("Interventions"), tr("Suivi, affectation et parcours"), ":/icons/nav/interventions.png"},
+        {Equipe, tr("Équipe"), tr("Gestion des employés"), ":/icons/nav/equipe.png"},
+        {Vehicules, tr("Véhicules"), tr("Flotte et maintenance"), ":/icons/nav/vehicules.png"},
+        {Carte, tr("Carte"), tr("Zones de couverture de Tunis"), ":/icons/nav/carte.png"},
+        {Equipements, tr("Équipements"), tr("Stocks, contrôles et alertes"), ":/icons/nav/equipements.png"},
+        {Sensibilisation, tr("Campagne de sensibilisation"), tr("Prévention et ciblage des zones"),
+         ":/icons/nav/sensibilisation.png"},
+    };
+
     m_stack = new QStackedWidget;
-    m_employes = new EmployesPage;
+    m_menu = new MenuPage(modules);
     m_interventions = new InterventionsPage;
+    m_employes = new EmployesPage;
     m_vehicules = new VehiculesPage;
     m_equipements = new EquipementsPage;
+    m_zones = new ZonesPage;
     m_campagnes = new CampagnesPage;
     // L'ordre doit suivre l'enum Page.
-    m_stack->addWidget(placeholder(tr("Tableau de bord")));
+    m_stack->addWidget(m_menu);
     m_stack->addWidget(m_interventions);
     m_stack->addWidget(m_employes);
     m_stack->addWidget(m_vehicules);
     m_stack->addWidget(m_equipements);
-    m_stack->addWidget(placeholder(tr("Carte / Zones de couverture")));
+    m_stack->addWidget(m_zones);
     m_stack->addWidget(m_campagnes);
-    m_stack->addWidget(placeholder(tr("Volontaires")));
-    m_stack->addWidget(placeholder(tr("Paramètres")));
     cl->addWidget(m_stack, 1);
     root->addWidget(center, 1);
 
-    // La recherche de la barre du haut filtre les deux pages.
+    connect(m_menu, &MenuPage::moduleChoisi, this, &MainWindow::afficherPage);
+
+    // La recherche de la barre du haut filtre les pages qui ont une liste
     connect(m_search, &QLineEdit::textChanged, m_employes, &EmployesPage::setSearch);
     connect(m_search, &QLineEdit::textChanged, m_interventions, &InterventionsPage::setSearch);
+    connect(m_search, &QLineEdit::textChanged, m_zones, &ZonesPage::setSearch);
 
-    // Page affichée au démarrage : Équipe (gestion des employés).
-    m_navGroup->button(Equipe)->setChecked(true);
-    m_stack->setCurrentIndex(Equipe);
+    // Après la connexion : le menu principal
+    afficherPage(Menu);
+}
+
+void MainWindow::afficherPage(int page)
+{
+    m_stack->setCurrentIndex(page);
+    if (QAbstractButton *b = m_navGroup->button(page))
+        b->setChecked(true);
+    // Sur le menu, la sidebar est inutile : elle apparaît dès qu'un module est ouvert
+    m_sidebar->setVisible(page != Menu);
+    m_search->setVisible(page != Menu);
 }
 
 QFrame *MainWindow::buildSidebar()
@@ -84,26 +109,20 @@ QFrame *MainWindow::buildSidebar()
     nomApp->setObjectName("sidebarNomApp");
     nomApp->setAlignment(Qt::AlignCenter);
     lay->addWidget(nomApp);
-    auto *slogan = new QLabel(QString::fromUtf8("PRÊTS · PROTÉGER · SAUVER"));
-    slogan->setObjectName("sidebarSlogan");
-    slogan->setAlignment(Qt::AlignCenter);
-    lay->addWidget(slogan);
-    lay->addSpacing(16);
+    lay->addSpacing(18);
 
     m_navGroup = new QButtonGroup(this);
     m_navGroup->setExclusive(true);
 
     struct Nav { Page page; const char *text; const char *icon; };
     const Nav items[] = {
-        {Dashboard, "Tableau de bord", ":/icons/nav/home.png"},
+        {Menu, "Menu", ":/icons/nav/home.png"},
         {Interventions, "Interventions", ":/icons/nav/interventions.png"},
         {Equipe, "Équipe", ":/icons/nav/equipe.png"},
         {Vehicules, "Véhicules", ":/icons/nav/vehicules.png"},
-        {Equipements, "Équipements", ":/icons/nav/equipements.png"},
         {Carte, "Carte", ":/icons/nav/carte.png"},
+        {Equipements, "Équipements", ":/icons/nav/equipements.png"},
         {Sensibilisation, "Campagne de\nSensibilisation", ":/icons/nav/sensibilisation.png"},
-        {Volontaires, "Volontaires", ":/icons/nav/volontaires.png"},
-        {Parametres, "Paramètres", ":/icons/nav/parametres.png"},
     };
     for (const Nav &n : items) {
         auto *b = new QPushButton("  " + QString::fromUtf8(n.text));
@@ -117,7 +136,7 @@ QFrame *MainWindow::buildSidebar()
     }
     lay->addStretch(1);
 
-    connect(m_navGroup, &QButtonGroup::idClicked, this, [this](int id) { m_stack->setCurrentIndex(id); });
+    connect(m_navGroup, &QButtonGroup::idClicked, this, &MainWindow::afficherPage);
     return m_sidebar;
 }
 
@@ -161,9 +180,6 @@ QFrame *MainWindow::buildTopBar()
     badge->setGeometry(22, 0, 18, 18);
     lay->addWidget(bellHost);
 
-    auto *gear = iconButton("btnSettings", ":/icons/gear.png");
-    lay->addWidget(gear);
-
     auto *avatar = new QLabel;
     avatar->setFixedSize(38, 38);
     avatar->setPixmap(QPixmap(":/icons/avatar.png"));
@@ -177,13 +193,13 @@ QFrame *MainWindow::buildTopBar()
     auto *power = iconButton("btnPower", ":/icons/power.png");
     lay->addWidget(power);
 
-    connect(menu, &QPushButton::clicked, this, [this] { m_sidebar->setVisible(!m_sidebar->isVisible()); });
+    connect(menu, &QPushButton::clicked, this, [this] {
+        // Sur le menu principal, le bouton ne fait rien (pas de sidebar à afficher)
+        if (m_stack->currentIndex() != Menu)
+            m_sidebar->setVisible(!m_sidebar->isVisible());
+    });
     connect(bell, &QPushButton::clicked, this, [this, badge] {
         QMessageBox::information(this, tr("Notifications"), tr("Vous avez %1 notifications.").arg(badge->text()));
-    });
-    connect(gear, &QPushButton::clicked, this, [this] {
-        m_navGroup->button(Parametres)->setChecked(true);
-        m_stack->setCurrentIndex(Parametres);
     });
     connect(power, &QPushButton::clicked, this, [this] {
         if (QMessageBox::question(this, tr("Quitter"), tr("Fermer l'application ?")) == QMessageBox::Yes)
@@ -192,25 +208,10 @@ QFrame *MainWindow::buildTopBar()
     return bar;
 }
 
-QWidget *MainWindow::placeholder(const QString &title) const
-{
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    auto *t = new QLabel(title);
-    t->setObjectName("labelTitle");
-    t->setAlignment(Qt::AlignCenter);
-    auto *s = new QLabel(tr("Module à intégrer ultérieurement."));
-    s->setAlignment(Qt::AlignCenter);
-    l->addStretch(1);
-    l->addWidget(t);
-    l->addWidget(s);
-    l->addStretch(1);
-    return w;
-}
-
-// Affiche le nom saisi dans la fenêtre de connexion (barre du haut).
+// Affiche le nom saisi dans la fenêtre de connexion (barre du haut et menu).
 void MainWindow::setUtilisateur(const QString &nom)
 {
+    m_menu->setUtilisateur(nom);
     if (!nom.isEmpty())
         m_labelUtilisateur->setText(tr("CONNECTÉ ·\n%1").arg(nom.toUpper()));
 }

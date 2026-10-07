@@ -20,6 +20,7 @@ public:
 private:
     bool createSchema();
     bool seedData();
+    bool migrerZones();
 
     QSqlDatabase m_db;
     QString m_error;

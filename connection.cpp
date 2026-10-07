@@ -6,6 +6,7 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStandardPaths>
+#include <QStringList>
 #include <QVariant>
 
 Connection::Connection() {}
@@ -26,7 +27,43 @@ bool Connection::createConnection()
 
     if (!createSchema())
         return false;
-    return seedData();
+    if (!seedData())
+        return false;
+    return migrerZones();
+}
+
+// Module Zones : coordonnées géographiques (carte de Tunis).
+// Ajoute les colonnes si la base a été créée par une version précédente,
+// puis place les zones de démonstration qui n'ont pas encore de coordonnées.
+bool Connection::migrerZones()
+{
+    QStringList colonnes;
+    QSqlQuery info("PRAGMA table_info(ZONE_COUVERTURE)");
+    while (info.next())
+        colonnes << info.value(1).toString().toUpper();
+
+    QSqlQuery q;
+    for (const QString &col : {QString("LATITUDE"), QString("LONGITUDE")}) {
+        if (!colonnes.contains(col) && !q.exec("ALTER TABLE ZONE_COUVERTURE ADD COLUMN " + col + " REAL")) {
+            m_error = q.lastError().text();
+            return false;
+        }
+    }
+
+    struct C { const char *nom; double lat; double lon; };
+    const C coords[] = {
+        {"Bab El Bhar", 36.799, 10.180}, {"La Marsa", 36.878, 10.325}, {"Ariana Ville", 36.862, 10.193},
+        {"Le Bardo", 36.809, 10.134}, {"Ben Arous", 36.753, 10.231}, {"La Goulette", 36.818, 10.305},
+        {"El Menzah", 36.838, 10.170}, {"Sidi Hassine", 36.770, 10.110}
+    };
+    q.prepare("UPDATE ZONE_COUVERTURE SET LATITUDE = ?, LONGITUDE = ? WHERE NOM = ? AND LATITUDE IS NULL");
+    for (const C &c : coords) {
+        q.addBindValue(c.lat);
+        q.addBindValue(c.lon);
+        q.addBindValue(QString::fromUtf8(c.nom));
+        q.exec();
+    }
+    return true;
 }
 
 void Connection::closeConnection()
@@ -121,7 +158,8 @@ bool Connection::seedData()
         {8, "Sidi Hassine", "Tunis Sud", 30.0, 110000, "Élevé", 16, 8}
     };
 
-    q.prepare("INSERT INTO ZONE_COUVERTURE VALUES (?,?,?,?,?,?,?)");
+    q.prepare("INSERT INTO ZONE_COUVERTURE (ID_ZONE, NOM, REGION, SUPERFICIE, POPULATION, NIVEAU_RISQUE,"
+              " TEMPS_INTERVENTION_MOYEN) VALUES (?,?,?,?,?,?,?)");
     for (const Z &z : zones) {
         q.addBindValue(z.id);
         q.addBindValue(QString::fromUtf8(z.nom));

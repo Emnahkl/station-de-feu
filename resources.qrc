@@ -65,6 +65,7 @@
         <file>images/logo.png</file>
         <file>images/logo_icone.png</file>
         <file>images/sidebar_bg.png</file>
+        <file>images/sidebar_bg_clean.png</file>
         <file>images/campagnes/ic_campagne.png</file>
         <file>images/campagnes/ic_equipe.png</file>
         <file>images/campagnes/ic_equipement.png</file>
@@ -74,5 +75,21 @@
         <file>images/campagnes/ic_zone.png</file>
         <file>images/campagnes/logo.png</file>
         <file>images/campagnes/sidebar_hero.jpg</file>
+        <file>images/employes/1etoile.png</file>
+        <file>images/employes/2etoile.png</file>
+        <file>images/employes/3etoile.png</file>
+        <file>images/employes/ajouter.png</file>
+        <file>images/employes/ajoutervolant.png</file>
+        <file>images/employes/alerte.png</file>
+        <file>images/employes/chatboot.png</file>
+        <file>images/employes/faceid.png</file>
+        <file>images/employes/fire.png</file>
+        <file>images/employes/logistc.png</file>
+        <file>images/employes/logo.png</file>
+        <file>images/employes/medic.png</file>
+        <file>images/employes/parametre.png</file>
+        <file>images/employes/qrcode.png</file>
+        <file>images/employes/sidebar.png</file>
+        <file>images/employes/supprimer.png</file>
     </qresource>
 </RCC>

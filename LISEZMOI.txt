@@ -5,21 +5,35 @@ Choisir un kit Qt 6 (modules necessaires : Widgets, Sql, Charts, PrintSupport),
 puis Compiler et Executer (Ctrl+R).
 
 DEMARRAGE
-- Une fenetre de connexion s'ouvre d'abord (nom d'utilisateur + mot de passe).
-- Pour le moment, "Se connecter" ouvre le menu principal meme si les champs sont vides
-  (la verification sera ajoutee dans LoginDialog::verifierIdentifiants()).
+1. Fenetre de connexion (nom d'utilisateur + mot de passe). Pour le moment, "Se connecter"
+   ouvre l'application meme si les champs sont vides (voir LoginDialog::verifierIdentifiants()).
+2. Menu principal : une tuile par module (menupage.cpp). Pour le moment, tous les modules
+   sont accessibles ; MenuPage::setModulesAutorises() permettra plus tard de n'afficher que
+   les modules lies au poste de l'employe connecte.
+3. Le module choisi s'ouvre avec la sidebar commune ; le bouton "Menu" ramene au menu principal.
 
 MODULES INTEGRES (sidebar commune, barre du haut commune)
-- Tableau de bord ............ page a venir
-- Interventions .............. interventionspage.cpp/.h        (branche intervention)
-- Equipe ..................... employespage.cpp/.h + rightpanel (branche gestion-des-employes)
-- Vehicules .................. vehiculespage.cpp/.h/.ui         (branche gestion-vehicule)
+- Interventions .............. interventionspage.cpp/.h + rightpanel   (branche intervention)
+- Equipe ..................... employespage.cpp/.h/.ui + qrgen.h        (branche gestion-des-employes,
+                               module d'origine sans modification de sa logique)
+- Vehicules .................. vehiculespage.cpp/.h/.ui                (branche gestion-vehicule)
+- Carte (Zones de couverture)  zonespage.cpp/.h/.ui, zone, cartezoneswidget
+                               (cree selon le cahier : la branche gestion-zones ne contenait
+                               qu'une copie du module Interventions)
 - Equipements ................ equipementspage.cpp/.h/.ui, equipement, equipementmodel, exports
                                (branche gestion-d'equipements)
-- Carte / Zones .............. page a venir (la branche gestion-zones ne contient pas encore le module)
 - Campagne de Sensibilisation  campagnespage.cpp/.h/.ui, campagne, barchartwidget
                                (branche gestion-campagnes-sensibilisation)
-- Volontaires, Parametres .... pages a venir
+
+MODULE ZONES (Chef de centre)
+- CRUD des zones (ID, nom, region/quartier, superficie, population, niveau de risque,
+  temps d'intervention moyen, latitude/longitude) avec controles de saisie.
+- Tri (niveau de risque, temps d'intervention, nom), recherche (nom, region), export PDF / Excel.
+- Statistiques : interventions par zone ou par niveau de risque (12 derniers mois).
+- Metier innovant 1 : carte de Tunis des zones a risque, couleur calculee a partir de
+  l'historique des interventions (pour 10 000 habitants).
+- Metier innovant 2 : alerte de zone sous-couverte quand le temps d'intervention moyen
+  depasse le seuil choisi.
 
 PRINCIPE D'INTEGRATION
 - mainwindow.cpp : sidebar + barre du haut + QStackedWidget (ordre des pages = enum Page).
@@ -27,11 +41,13 @@ PRINCIPE D'INTEGRATION
   masquee dans son constructeur (setWindowFlags(Qt::Widget) + hide()).
 - Base de donnees SQLite commune "firestation.db" (dossier de donnees de l'application),
   ouverte une seule fois dans main.cpp (connection.cpp) : tables EQUIPEMENT, CAMPAGNE,
-  ZONE_COUVERTURE, EMPLOYE, INTERVENTION.
+  ZONE_COUVERTURE, EMPLOYE, INTERVENTION. Les colonnes LATITUDE/LONGITUDE des zones sont
+  ajoutees automatiquement si la base existait deja.
 - Images et icones : resources.qrc (icons/nav/ = icones blanches de la sidebar,
-  images/campagnes/ = images du module Campagnes).
+  images/campagnes/ et images/employes/ = images des modules ; images/sidebar_bg_clean.png =
+  fond de la sidebar sans texte).
 - style.qss : style global ; les regles des tableaux/listes deroulantes sont limitees
-  aux pages Employes et Interventions pour ne pas modifier les autres modules.
+  a la page Interventions pour ne pas modifier les autres modules.
 
 AJOUTER UN MODULE
 1. Copier ses fichiers, renommer sa classe MainWindow en <Module>Page (et son .ui).
