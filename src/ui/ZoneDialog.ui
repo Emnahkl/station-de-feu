@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ZoneDialog</class>
+ <widget class="QDialog" name="ZoneDialog">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>440</width><height>470</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Zone de couverture</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0"><widget class="QLabel" name="lbId"><property name="text"><string>ID zone</string></property></widget></item>
+     <item row="0" column="1"><widget class="QLineEdit" name="leId"><property name="readOnly"><bool>true</bool></property></widget></item>
+     <item row="1" column="0"><widget class="QLabel" name="lbNom"><property name="text"><string>Nom *</string></property></widget></item>
+     <item row="1" column="1"><widget class="QLineEdit" name="leNom"/></item>
+     <item row="2" column="0"><widget class="QLabel" name="lbRegion"><property name="text"><string>Région / quartier *</string></property></widget></item>
+     <item row="2" column="1"><widget class="QLineEdit" name="leRegion"/></item>
+     <item row="3" column="0"><widget class="QLabel" name="lbSup"><property name="text"><string>Superficie</string></property></widget></item>
+     <item row="3" column="1"><widget class="QDoubleSpinBox" name="dsbSuperficie"><property name="suffix"><string> km²</string></property><property name="decimals"><number>1</number></property><property name="maximum"><double>100000.000000000000000</double></property></widget></item>
+     <item row="4" column="0"><widget class="QLabel" name="lbPop"><property name="text"><string>Population</string></property></widget></item>
+     <item row="4" column="1"><widget class="QSpinBox" name="sbPopulation"><property name="maximum"><number>50000000</number></property><property name="singleStep"><number>1000</number></property></widget></item>
+     <item row="5" column="0"><widget class="QLabel" name="lbRisque"><property name="text"><string>Niveau de risque</string></property></widget></item>
+     <item row="5" column="1"><widget class="QComboBox" name="cbRisque"/></item>
+     <item row="6" column="0"><widget class="QLabel" name="lbTemps"><property name="text"><string>Temps d'intervention moyen</string></property></widget></item>
+     <item row="6" column="1"><widget class="QDoubleSpinBox" name="dsbTemps"><property name="suffix"><string> min</string></property><property name="decimals"><number>1</number></property><property name="maximum"><double>600.000000000000000</double></property></widget></item>
+     <item row="7" column="0"><widget class="QLabel" name="lbEq"><property name="text"><string>Équipes affectées</string></property></widget></item>
+     <item row="7" column="1"><widget class="QSpinBox" name="sbEquipes"><property name="maximum"><number>500</number></property></widget></item>
+     <item row="8" column="0"><widget class="QLabel" name="lbVeh"><property name="text"><string>Véhicules</string></property></widget></item>
+     <item row="8" column="1"><widget class="QSpinBox" name="sbVehicules"><property name="maximum"><number>500</number></property></widget></item>
+     <item row="9" column="0"><widget class="QLabel" name="lbLat"><property name="text"><string>Latitude</string></property></widget></item>
+     <item row="9" column="1"><widget class="QDoubleSpinBox" name="dsbLat"><property name="decimals"><number>5</number></property><property name="minimum"><double>-90.000000000000000</double></property><property name="maximum"><double>90.000000000000000</double></property></widget></item>
+     <item row="10" column="0"><widget class="QLabel" name="lbLon"><property name="text"><string>Longitude</string></property></widget></item>
+     <item row="10" column="1"><widget class="QDoubleSpinBox" name="dsbLon"><property name="decimals"><number>5</number></property><property name="minimum"><double>-180.000000000000000</double></property><property name="maximum"><double>180.000000000000000</double></property></widget></item>
+     <item row="11" column="0"><widget class="QLabel" name="lbRayon"><property name="text"><string>Rayon d'influence</string></property></widget></item>
+     <item row="11" column="1"><widget class="QDoubleSpinBox" name="dsbRayon"><property name="suffix"><string> km</string></property><property name="decimals"><number>1</number></property><property name="minimum"><double>0.100000000000000</double></property><property name="maximum"><double>50.000000000000000</double></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="lbError">
+     <property name="styleSheet"><string notr="true">color:#b91c1c; font-weight:600;</string></property>
+     <property name="text"><string/></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons"><set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set></property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
