@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/campaign">
+    <file alias="images/logo.png">campaign_images/logo.png</file>
+    <file alias="images/sidebar_hero.jpg">campaign_images/sidebar_hero.jpg</file>
+    <file alias="images/ic_home.png">campaign_images/ic_home.png</file>
+    <file alias="images/ic_equipe.png">campaign_images/ic_equipe.png</file>
+    <file alias="images/ic_vehicule.png">campaign_images/ic_vehicule.png</file>
+    <file alias="images/ic_equipement.png">campaign_images/ic_equipement.png</file>
+    <file alias="images/ic_intervention.png">campaign_images/ic_intervention.png</file>
+    <file alias="images/ic_campagne.png">campaign_images/ic_campagne.png</file>
+    <file alias="images/ic_zone.png">campaign_images/ic_zone.png</file>
+  </qresource>
+</RCC>

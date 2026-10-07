@@ -1,0 +1,1396 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CampaignWindow</class>
+ <widget class="QMainWindow" name="CampaignWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1320</width>
+    <height>820</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1100</width>
+    <height>700</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>FireStation Manager</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QMainWindow { background: #F4F4F4; }
+QWidget { font-size: 13px; color: #2B2B2B; }
+#frame_sidebar { background: qlineargradient(x1:0, y1:0, x2:0.3, y2:1, stop:0 #4A0503, stop:0.55 #380404, stop:1 #350404); border-right: 1px solid #1A0202; }
+#frame_sidebar QLabel { color: #FFFFFF; background: transparent; }
+#label_logo { font-size: 22px; font-weight: 900; color: #FFFFFF; letter-spacing: 1px; }
+#label_slogan { color: #F2D7D7; font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+#frame_sidebar QPushButton { color: #FFFFFF; background: transparent; border: none; text-align: left; padding: 11px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+#frame_sidebar QPushButton:hover { background: rgba(255, 255, 255, 0.08); }
+#frame_sidebar QPushButton:checked { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #D3122A, stop:1 #A50E1F); border: 1px solid #E5394A; }
+#frame_hero { border-image: url(:/campaign/images/sidebar_hero.jpg) 0 0 0 0 stretch stretch; }
+#label_heroTitre { font-size: 20px; font-weight: bold; color: #FFFFFF; }
+#label_heroSousTitre { font-size: 15px; font-weight: bold; color: #FFFFFF; }
+#frame_heroTrait { background: #E53935; border-radius: 1px; }
+QStatusBar { background: #1E2329; color: #C9CED6; border-top: 1px solid #111; }
+QStatusBar QLabel { color: #C9CED6; font-size: 12px; padding: 2px 8px; }
+#frame_header { background: #FFFFFF; border-bottom: 3px solid #C62828; }
+#label_pageTitle { font-size: 20px; font-weight: bold; color: #C62828; }
+#label_user { color: #555555; }
+QGroupBox { background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 8px; margin-top: 18px; padding: 10px; font-weight: bold; }
+QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; color: #C62828; }
+QLineEdit, QComboBox, QDateEdit, QSpinBox { background: #FFFFFF; border: 1px solid #BDBDBD; border-radius: 5px; padding: 5px; min-height: 22px; }
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:focus { border: 1px solid #FF6F00; }
+QPushButton { background: #FF6F00; color: #FFFFFF; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; }
+QPushButton:hover { background: #E65100; }
+QPushButton:disabled { background: #BDBDBD; }
+#pushButton_ajouter { background: #2E7D32; }
+#pushButton_ajouter:hover { background: #1B5E20; }
+#pushButton_supprimer { background: #C62828; }
+#pushButton_supprimer:hover { background: #8E0000; }
+#pushButton_vider { background: #757575; }
+QTableView, QTableWidget { background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 6px; gridline-color: #EEEEEE; selection-background-color: #FFE0B2; selection-color: #2B2B2B; }
+QHeaderView::section { background: #C62828; color: #FFFFFF; padding: 6px; border: none; font-weight: bold; }
+QTabWidget::pane { border: none; }
+QTabBar::tab { background: #E0E0E0; padding: 8px 18px; min-width: 130px; margin-right: 4px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background: #C62828; color: #FFFFFF; font-weight: bold; }
+#label_zonePrioritaire { color: #C62828; font-weight: bold; }
+#label_impactVerdict { font-weight: bold; }
+#label_affichePreview { background: #FFFFFF; border: 2px dashed #BDBDBD; border-radius: 8px; color: #757575; }
+#label_placeholder_dashboard, #label_placeholder_employes, #label_placeholder_vehicules, #label_placeholder_equipements, #label_placeholder_interventions, #label_placeholder_zones { color: #757575; font-size: 16px; }</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout_central">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QFrame" name="frame_sidebar">
+      <property name="minimumSize">
+       <size>
+        <width>240</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>240</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_sidebar">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>18</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item alignment="Qt::AlignHCenter">
+        <widget class="QLabel" name="label_logoImage">
+         <property name="minimumSize">
+          <size>
+           <width>110</width>
+           <height>110</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>110</width>
+           <height>110</height>
+          </size>
+         </property>
+         <property name="pixmap">
+          <pixmap resource="campaign_resources.qrc">:/campaign/images/logo.png</pixmap>
+         </property>
+         <property name="scaledContents">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_logo">
+         <property name="text">
+          <string>FIRE STATION</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_slogan">
+         <property name="text">
+          <string>PRÊTS · PROTÉGER · SAUVER</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_logo">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>14</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_nav">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <property name="leftMargin">
+          <number>12</number>
+         </property>
+         <property name="rightMargin">
+          <number>12</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="pushButton_navDashboard">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Tableau de bord</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_home.png</normaloff>:/campaign/images/ic_home.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navInterventions">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Interventions</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_intervention.png</normaloff>:/campaign/images/ic_intervention.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navEmployes">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Équipe</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_equipe.png</normaloff>:/campaign/images/ic_equipe.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navVehicules">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Véhicules</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_vehicule.png</normaloff>:/campaign/images/ic_vehicule.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navEquipements">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Équipements</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_equipement.png</normaloff>:/campaign/images/ic_equipement.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navCampagnes">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Sensibilisation</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_campagne.png</normaloff>:/campaign/images/ic_campagne.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_navZones">
+           <property name="cursor">
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="text">
+            <string>Zones / Carte</string>
+           </property>
+           <property name="icon">
+            <iconset resource="campaign_resources.qrc">
+             <normaloff>:/campaign/images/ic_zone.png</normaloff>:/campaign/images/ic_zone.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="autoExclusive">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_sidebar">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>10</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QFrame" name="frame_hero">
+         <property name="minimumSize">
+          <size>
+           <width>240</width>
+           <height>202</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>240</width>
+           <height>202</height>
+          </size>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_hero">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>22</number>
+          </property>
+          <property name="bottomMargin">
+           <number>18</number>
+          </property>
+          <item>
+           <spacer name="verticalSpacer_hero">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_heroTitre">
+            <property name="text">
+             <string>Ensemble</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_heroSousTitre">
+            <property name="text">
+             <string>pour sauver des vies</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_trait">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>8</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QFrame" name="frame_heroTrait">
+            <property name="minimumSize">
+             <size>
+              <width>44</width>
+              <height>3</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>44</width>
+              <height>3</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="widget_main" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout_main">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QFrame" name="frame_header">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>64</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_header">
+          <property name="leftMargin">
+           <number>20</number>
+          </property>
+          <property name="rightMargin">
+           <number>20</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="label_pageTitle">
+            <property name="text">
+             <string>Gestion des campagnes de sensibilisation</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_header">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_user">
+            <property name="text">
+             <string>👤 Officier prévention</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QStackedWidget" name="stackedWidget">
+         <property name="currentIndex">
+          <number>5</number>
+         </property>
+         <widget class="QWidget" name="page_dashboard">
+          <layout class="QVBoxLayout" name="verticalLayout_dashboard">
+           <item>
+            <widget class="QLabel" name="label_placeholder_dashboard">
+             <property name="text">
+              <string>Tableau de bord — vue synthétique de l'activité de la caserne</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_employes">
+          <layout class="QVBoxLayout" name="verticalLayout_employes">
+           <item>
+            <widget class="QLabel" name="label_placeholder_employes">
+             <property name="text">
+              <string>Module Gestion des employés &amp; authentification</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_vehicules">
+          <layout class="QVBoxLayout" name="verticalLayout_vehicules">
+           <item>
+            <widget class="QLabel" name="label_placeholder_vehicules">
+             <property name="text">
+              <string>Module Gestion des véhicules</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_equipements">
+          <layout class="QVBoxLayout" name="verticalLayout_equipements">
+           <item>
+            <widget class="QLabel" name="label_placeholder_equipements">
+             <property name="text">
+              <string>Module Gestion des équipements</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_interventions">
+          <layout class="QVBoxLayout" name="verticalLayout_interventions">
+           <item>
+            <widget class="QLabel" name="label_placeholder_interventions">
+             <property name="text">
+              <string>Module Gestion des interventions</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_campagnes">
+          <layout class="QVBoxLayout" name="verticalLayout_campagnes">
+           <property name="leftMargin">
+            <number>16</number>
+           </property>
+           <property name="topMargin">
+            <number>12</number>
+           </property>
+           <property name="rightMargin">
+            <number>16</number>
+           </property>
+           <property name="bottomMargin">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QTabWidget" name="tabWidget_campagnes">
+             <property name="currentIndex">
+              <number>0</number>
+             </property>
+             <widget class="QWidget" name="tab_gestion">
+              <attribute name="title">
+               <string>📋 Gestion</string>
+              </attribute>
+              <layout class="QHBoxLayout" name="horizontalLayout_gestion">
+               <item>
+                <widget class="QGroupBox" name="groupBox_formulaire">
+                 <property name="minimumSize">
+                  <size>
+                   <width>340</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>380</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="title">
+                  <string>Fiche campagne</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_formulaire">
+                  <item>
+                   <layout class="QFormLayout" name="formLayout_campagne">
+                    <property name="labelAlignment">
+                     <set>Qt::AlignRight|Qt::AlignVCenter</set>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="QLabel" name="label_id">
+                      <property name="text">
+                       <string>ID :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QLineEdit" name="lineEdit_id">
+                      <property name="placeholderText">
+                       <string>Identifiant (entier)</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QLabel" name="label_titre">
+                      <property name="text">
+                       <string>Titre :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="QLineEdit" name="lineEdit_titre">
+                      <property name="maxLength">
+                       <number>80</number>
+                      </property>
+                      <property name="placeholderText">
+                       <string>Ex. : Écoles sans risque</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="0">
+                     <widget class="QLabel" name="label_theme">
+                      <property name="text">
+                       <string>Thème :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="1">
+                     <widget class="QComboBox" name="comboBox_theme">
+                      <item>
+                       <property name="text">
+                        <string>Sécurité incendie</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Premiers secours</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Feux de forêt</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Accidents domestiques</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Sécurité routière</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Risques naturels</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item row="3" column="0">
+                     <widget class="QLabel" name="label_date">
+                      <property name="text">
+                       <string>Date :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="3" column="1">
+                     <widget class="QDateEdit" name="dateEdit_date">
+                      <property name="displayFormat">
+                       <string>dd/MM/yyyy</string>
+                      </property>
+                      <property name="calendarPopup">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="0">
+                     <widget class="QLabel" name="label_lieu">
+                      <property name="text">
+                       <string>Lieu :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="1">
+                     <widget class="QLineEdit" name="lineEdit_lieu">
+                      <property name="maxLength">
+                       <number>120</number>
+                      </property>
+                      <property name="placeholderText">
+                       <string>Établissement, adresse…</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="0">
+                     <widget class="QLabel" name="label_public">
+                      <property name="text">
+                       <string>Public cible :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="1">
+                     <widget class="QComboBox" name="comboBox_public">
+                      <item>
+                       <property name="text">
+                        <string>Écoles</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Entreprises</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Habitants</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Associations</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Administrations</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item row="6" column="0">
+                     <widget class="QLabel" name="label_participants">
+                      <property name="text">
+                       <string>Participants :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="6" column="1">
+                     <widget class="QSpinBox" name="spinBox_participants">
+                      <property name="maximum">
+                       <number>100000</number>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="0">
+                     <widget class="QLabel" name="label_zone">
+                      <property name="text">
+                       <string>Zone :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="1">
+                     <widget class="QComboBox" name="comboBox_zone"/>
+                    </item>
+                    <item row="8" column="0">
+                     <widget class="QLabel" name="label_animateur">
+                      <property name="text">
+                       <string>Animateur :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="8" column="1">
+                     <widget class="QComboBox" name="comboBox_animateur"/>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <layout class="QGridLayout" name="gridLayout_boutons">
+                    <item row="0" column="0">
+                     <widget class="QPushButton" name="pushButton_ajouter">
+                      <property name="text">
+                       <string>➕ Ajouter</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QPushButton" name="pushButton_modifier">
+                      <property name="text">
+                       <string>✏️ Modifier</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QPushButton" name="pushButton_supprimer">
+                      <property name="text">
+                       <string>🗑️ Supprimer</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="QPushButton" name="pushButton_vider">
+                      <property name="text">
+                       <string>↺ Vider</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <spacer name="verticalSpacer_formulaire">
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>20</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="groupBox_liste">
+                 <property name="title">
+                  <string>Liste des campagnes</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_liste">
+                  <item>
+                   <layout class="QHBoxLayout" name="horizontalLayout_outils">
+                    <item>
+                     <widget class="QLineEdit" name="lineEdit_recherche">
+                      <property name="placeholderText">
+                       <string>🔍 Rechercher…</string>
+                      </property>
+                      <property name="clearButtonEnabled">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="comboBox_critere">
+                      <item>
+                       <property name="text">
+                        <string>Thème</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Public cible</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Titre</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Lieu</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="label_tri">
+                      <property name="text">
+                       <string>Trier :</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QComboBox" name="comboBox_tri">
+                      <item>
+                       <property name="text">
+                        <string>Date (récentes)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Date (anciennes)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Participants (décroissant)</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Participants (croissant)</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="pushButton_exportPdf">
+                      <property name="text">
+                       <string>📄 PDF</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="pushButton_exportExcel">
+                      <property name="text">
+                       <string>📊 Excel</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <widget class="QTableView" name="tableView_campagnes">
+                    <property name="editTriggers">
+                     <set>QAbstractItemView::NoEditTriggers</set>
+                    </property>
+                    <property name="alternatingRowColors">
+                     <bool>true</bool>
+                    </property>
+                    <property name="selectionMode">
+                     <enum>QAbstractItemView::SingleSelection</enum>
+                    </property>
+                    <property name="selectionBehavior">
+                     <enum>QAbstractItemView::SelectRows</enum>
+                    </property>
+                    <attribute name="verticalHeaderVisible">
+                     <bool>false</bool>
+                    </attribute>
+                    <attribute name="horizontalHeaderStretchLastSection">
+                     <bool>true</bool>
+                    </attribute>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_compteur">
+                    <property name="text">
+                     <string>0 campagne(s)</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tab_stats">
+              <attribute name="title">
+               <string>📈 Statistiques</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="verticalLayout_stats" stretch="0,1">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_stats">
+                 <item>
+                  <widget class="QLabel" name="label_statCritere">
+                   <property name="text">
+                    <string>Répartition des campagnes :</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="comboBox_statCritere">
+                   <item>
+                    <property name="text">
+                     <string>Par thème</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Par zone</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="pushButton_actualiserStats">
+                   <property name="text">
+                    <string>🔄 Actualiser</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_stats">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="label_statTotal">
+                   <property name="text">
+                    <string>Total : 0 campagne(s) — 0 participant(s)</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="groupBox_graphique">
+                 <property name="title">
+                  <string>Graphique</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_chart"/>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tab_ciblage">
+              <attribute name="title">
+               <string>🎯 Ciblage &amp;&amp; impact</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="verticalLayout_ciblage">
+               <item>
+                <widget class="QGroupBox" name="groupBox_ciblage">
+                 <property name="title">
+                  <string>Ciblage automatique des zones les plus touchées</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_groupCiblage">
+                  <item>
+                   <layout class="QHBoxLayout" name="horizontalLayout_ciblage">
+                    <item>
+                     <widget class="QPushButton" name="pushButton_lancerCiblage">
+                      <property name="text">
+                       <string>🎯 Calculer le ciblage</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="label_zonePrioritaire">
+                      <property name="text">
+                       <string>Zone prioritaire : —</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="horizontalSpacer_ciblage">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="pushButton_planifierZone">
+                      <property name="enabled">
+                       <bool>false</bool>
+                      </property>
+                      <property name="text">
+                       <string>📅 Planifier une campagne dans cette zone</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <widget class="QTableWidget" name="tableWidget_ciblage">
+                    <property name="editTriggers">
+                     <set>QAbstractItemView::NoEditTriggers</set>
+                    </property>
+                    <property name="selectionBehavior">
+                     <enum>QAbstractItemView::SelectRows</enum>
+                    </property>
+                    <property name="selectionMode">
+                     <enum>QAbstractItemView::SingleSelection</enum>
+                    </property>
+                    <attribute name="verticalHeaderVisible">
+                     <bool>false</bool>
+                    </attribute>
+                    <attribute name="horizontalHeaderStretchLastSection">
+                     <bool>true</bool>
+                    </attribute>
+                    <column>
+                     <property name="text">
+                      <string>Zone</string>
+                     </property>
+                    </column>
+                    <column>
+                     <property name="text">
+                      <string>Niveau de risque</string>
+                     </property>
+                    </column>
+                    <column>
+                     <property name="text">
+                      <string>Interventions (12 mois)</string>
+                     </property>
+                    </column>
+                    <column>
+                     <property name="text">
+                      <string>Campagnes (12 mois)</string>
+                     </property>
+                    </column>
+                    <column>
+                     <property name="text">
+                      <string>Score</string>
+                     </property>
+                    </column>
+                    <column>
+                     <property name="text">
+                      <string>Recommandation</string>
+                     </property>
+                    </column>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="groupBox_impact">
+                 <property name="title">
+                  <string>Évaluation de l'impact d'une campagne (interventions avant / après)</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_impact">
+                  <item row="0" column="0">
+                   <widget class="QLabel" name="label_campagneImpact">
+                    <property name="text">
+                     <string>Campagne :</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="1">
+                   <widget class="QComboBox" name="comboBox_campagneImpact">
+                    <property name="minimumSize">
+                     <size>
+                      <width>280</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="2">
+                   <widget class="QLabel" name="label_fenetre">
+                    <property name="text">
+                     <string>Période comparée :</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
+                   <widget class="QSpinBox" name="spinBox_fenetre">
+                    <property name="suffix">
+                     <string> mois</string>
+                    </property>
+                    <property name="minimum">
+                     <number>1</number>
+                    </property>
+                    <property name="maximum">
+                     <number>12</number>
+                    </property>
+                    <property name="value">
+                     <number>3</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="4">
+                   <widget class="QPushButton" name="pushButton_evaluerImpact">
+                    <property name="text">
+                     <string>📉 Évaluer l'impact</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0" colspan="2">
+                   <widget class="QLabel" name="label_impactAvant">
+                    <property name="text">
+                     <string>Interventions avant : —</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2" colspan="2">
+                   <widget class="QLabel" name="label_impactApres">
+                    <property name="text">
+                     <string>Interventions après : —</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="4">
+                   <widget class="QLabel" name="label_impactVariation">
+                    <property name="text">
+                     <string>Variation : —</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0" colspan="5">
+                   <widget class="QLabel" name="label_impactVerdict">
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tab_affiche">
+              <attribute name="title">
+               <string>🖼️ Affiche IA</string>
+              </attribute>
+              <layout class="QHBoxLayout" name="horizontalLayout_affiche">
+               <item>
+                <widget class="QGroupBox" name="groupBox_afficheParams">
+                 <property name="maximumSize">
+                  <size>
+                   <width>380</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="title">
+                  <string>Génération d'affiche de sensibilisation</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_afficheParams">
+                  <item>
+                   <widget class="QLabel" name="label_afficheCampagne">
+                    <property name="text">
+                     <string>Campagne (thème, public, zone) :</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QComboBox" name="comboBox_afficheCampagne"/>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_afficheSlogan">
+                    <property name="text">
+                     <string>Slogan (laisser vide = proposé automatiquement) :</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLineEdit" name="lineEdit_slogan">
+                    <property name="maxLength">
+                     <number>70</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="pushButton_genererAffiche">
+                    <property name="text">
+                     <string>✨ Générer l'affiche</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="pushButton_enregistrerAffiche">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="text">
+                     <string>💾 Enregistrer (PNG)</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <spacer name="verticalSpacer_affiche">
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>40</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_affichePreview">
+                 <property name="minimumSize">
+                  <size>
+                   <width>360</width>
+                   <height>450</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Aperçu de l'affiche</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignCenter</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_zones">
+          <layout class="QVBoxLayout" name="verticalLayout_zones">
+           <item>
+            <widget class="QLabel" name="label_placeholder_zones">
+             <property name="text">
+              <string>Module Gestion des zones de couverture</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ <widget class="QStatusBar" name="statusbar">
+   <property name="sizeGripEnabled">
+    <bool>false</bool>
+   </property>
+  </widget>
+ </widget>
+ <resources>
+  <include location="campaign_resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>
+
+
+
+
