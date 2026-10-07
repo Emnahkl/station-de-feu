@@ -1,10 +1,15 @@
+#include "mainwindow.h"
+
 #include <QApplication>
-#include "gestioninterventions.h"
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    GestionInterventions w;
-    w.showMaximized();
-    return a.exec();
+    QApplication app(argc, argv);
+    QCoreApplication::setOrganizationName("Fire Station");
+    QCoreApplication::setApplicationName("GestionVehicules");
+    app.setStyle("Fusion");
+
+    MainWindow window;
+    window.showMaximized();
+    return app.exec();
 }
