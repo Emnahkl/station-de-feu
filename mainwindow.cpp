@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "employespage.h"
 #include "interventionspage.h"
+#include "vehiculespage.h"
+#include "equipementspage.h"
+#include "campagnespage.h"
 
 #include <QButtonGroup>
 #include <QFrame>
@@ -16,7 +19,7 @@
 MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
 {
     setObjectName("MainWindow");
-    setWindowTitle(tr("Station de feu - Employés & Interventions"));
+    setWindowTitle(tr("FireStation Manager"));
     setWindowIcon(QIcon(":/images/logo.png"));
     setMinimumSize(1280, 740);
     resize(1500, 860);
@@ -37,13 +40,17 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
     m_stack = new QStackedWidget;
     m_employes = new EmployesPage;
     m_interventions = new InterventionsPage;
+    m_vehicules = new VehiculesPage;
+    m_equipements = new EquipementsPage;
+    m_campagnes = new CampagnesPage;
     // L'ordre doit suivre l'enum Page.
     m_stack->addWidget(placeholder(tr("Tableau de bord")));
     m_stack->addWidget(m_interventions);
     m_stack->addWidget(m_employes);
-    m_stack->addWidget(placeholder(tr("Véhicules")));
-    m_stack->addWidget(placeholder(tr("Carte")));
-    m_stack->addWidget(placeholder(tr("Campagne de Sensibilisation")));
+    m_stack->addWidget(m_vehicules);
+    m_stack->addWidget(m_equipements);
+    m_stack->addWidget(placeholder(tr("Carte / Zones de couverture")));
+    m_stack->addWidget(m_campagnes);
     m_stack->addWidget(placeholder(tr("Volontaires")));
     m_stack->addWidget(placeholder(tr("Paramètres")));
     cl->addWidget(m_stack, 1);
@@ -62,10 +69,10 @@ QFrame *MainWindow::buildSidebar()
 {
     m_sidebar = new QFrame;
     m_sidebar->setObjectName("sidebar");
-    m_sidebar->setFixedWidth(215);
+    m_sidebar->setFixedWidth(230);
     auto *lay = new QVBoxLayout(m_sidebar);
-    lay->setContentsMargins(0, 24, 0, 24);
-    lay->setSpacing(2);
+    lay->setContentsMargins(12, 24, 12, 24);
+    lay->setSpacing(4);
 
     auto *logo = new QLabel;
     logo->setObjectName("logoLabel");
@@ -73,21 +80,30 @@ QFrame *MainWindow::buildSidebar()
     logo->setPixmap(QPixmap(":/images/logo.png"));
     logo->setScaledContents(true);
     lay->addWidget(logo, 0, Qt::AlignHCenter);
-    lay->addSpacing(22);
+    auto *nomApp = new QLabel(tr("FIRE STATION"));
+    nomApp->setObjectName("sidebarNomApp");
+    nomApp->setAlignment(Qt::AlignCenter);
+    lay->addWidget(nomApp);
+    auto *slogan = new QLabel(QString::fromUtf8("PRÊTS · PROTÉGER · SAUVER"));
+    slogan->setObjectName("sidebarSlogan");
+    slogan->setAlignment(Qt::AlignCenter);
+    lay->addWidget(slogan);
+    lay->addSpacing(16);
 
     m_navGroup = new QButtonGroup(this);
     m_navGroup->setExclusive(true);
 
     struct Nav { Page page; const char *text; const char *icon; };
     const Nav items[] = {
-        {Dashboard, "Tableau de bord", ":/icons/home.png"},
-        {Interventions, "Interventions", ":/icons/interventions.png"},
-        {Equipe, "Équipe", ":/icons/team.png"},
-        {Vehicules, "Véhicules", ":/icons/vehicules.png"},
-        {Carte, "Carte", ":/icons/zones.png"},
-        {Sensibilisation, "Campagne de\nSensibilisation", ":/icons/sensibilisation.png"},
-        {Volontaires, "Volontaires", ":/icons/employes.png"},
-        {Parametres, "Paramètres", ":/icons/parametres.png"},
+        {Dashboard, "Tableau de bord", ":/icons/nav/home.png"},
+        {Interventions, "Interventions", ":/icons/nav/interventions.png"},
+        {Equipe, "Équipe", ":/icons/nav/equipe.png"},
+        {Vehicules, "Véhicules", ":/icons/nav/vehicules.png"},
+        {Equipements, "Équipements", ":/icons/nav/equipements.png"},
+        {Carte, "Carte", ":/icons/nav/carte.png"},
+        {Sensibilisation, "Campagne de\nSensibilisation", ":/icons/nav/sensibilisation.png"},
+        {Volontaires, "Volontaires", ":/icons/nav/volontaires.png"},
+        {Parametres, "Paramètres", ":/icons/nav/parametres.png"},
     };
     for (const Nav &n : items) {
         auto *b = new QPushButton("  " + QString::fromUtf8(n.text));
@@ -154,9 +170,9 @@ QFrame *MainWindow::buildTopBar()
     avatar->setScaledContents(true);
     lay->addWidget(avatar);
 
-    auto *name = new QLabel(tr("CHEF DE CENTRE ·\nRAYEN"));
-    name->setObjectName("labelAdmin");
-    lay->addWidget(name);
+    m_labelUtilisateur = new QLabel(tr("CHEF DE CENTRE ·\nRAYEN"));
+    m_labelUtilisateur->setObjectName("labelAdmin");
+    lay->addWidget(m_labelUtilisateur);
 
     auto *power = iconButton("btnPower", ":/icons/power.png");
     lay->addWidget(power);
@@ -190,4 +206,11 @@ QWidget *MainWindow::placeholder(const QString &title) const
     l->addWidget(s);
     l->addStretch(1);
     return w;
+}
+
+// Affiche le nom saisi dans la fenêtre de connexion (barre du haut).
+void MainWindow::setUtilisateur(const QString &nom)
+{
+    if (!nom.isEmpty())
+        m_labelUtilisateur->setText(tr("CONNECTÉ ·\n%1").arg(nom.toUpper()));
 }

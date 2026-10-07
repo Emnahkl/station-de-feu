@@ -1,0 +1,6 @@
+build/
+.qtcreator/
+*.pro.user*
+.DS_Store
+*.o
+Makefile*

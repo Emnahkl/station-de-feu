@@ -1,9 +1,39 @@
-integration_employe_inter - Station de feu (Qt Widgets, Qt 5.15 / Qt 6)
+FireStation Manager - Integration (Qt Widgets, Qt 6, qmake)
 
-Ouvrir dans Qt Creator : Fichier > Ouvrir un fichier ou projet > integration_employe_inter.pro
-Choisir un kit, puis Compiler et Executer (Ctrl+R).
+Ouvrir dans Qt Creator : Fichier > Ouvrir un fichier ou projet > FireStationManager.pro
+Choisir un kit Qt 6 (modules necessaires : Widgets, Sql, Charts, PrintSupport),
+puis Compiler et Executer (Ctrl+R).
 
-- Clic sur "Equipe"        -> page Gestion des employes
-- Clic sur "Interventions" -> page Gestion des interventions
-- La sidebar, la barre du haut (recherche, notifications, parametres) et le panneau de droite sont communs.
-- Toutes les images/icones sont dans resources.qrc (aucun chemin disque : tout est integre a l'executable).
+DEMARRAGE
+- Une fenetre de connexion s'ouvre d'abord (nom d'utilisateur + mot de passe).
+- Pour le moment, "Se connecter" ouvre le menu principal meme si les champs sont vides
+  (la verification sera ajoutee dans LoginDialog::verifierIdentifiants()).
+
+MODULES INTEGRES (sidebar commune, barre du haut commune)
+- Tableau de bord ............ page a venir
+- Interventions .............. interventionspage.cpp/.h        (branche intervention)
+- Equipe ..................... employespage.cpp/.h + rightpanel (branche gestion-des-employes)
+- Vehicules .................. vehiculespage.cpp/.h/.ui         (branche gestion-vehicule)
+- Equipements ................ equipementspage.cpp/.h/.ui, equipement, equipementmodel, exports
+                               (branche gestion-d'equipements)
+- Carte / Zones .............. page a venir (la branche gestion-zones ne contient pas encore le module)
+- Campagne de Sensibilisation  campagnespage.cpp/.h/.ui, campagne, barchartwidget
+                               (branche gestion-campagnes-sensibilisation)
+- Volontaires, Parametres .... pages a venir
+
+PRINCIPE D'INTEGRATION
+- mainwindow.cpp : sidebar + barre du haut + QStackedWidget (ordre des pages = enum Page).
+- Chaque module garde son propre code et son .ui ; sa propre sidebar/en-tete est simplement
+  masquee dans son constructeur (setWindowFlags(Qt::Widget) + hide()).
+- Base de donnees SQLite commune "firestation.db" (dossier de donnees de l'application),
+  ouverte une seule fois dans main.cpp (connection.cpp) : tables EQUIPEMENT, CAMPAGNE,
+  ZONE_COUVERTURE, EMPLOYE, INTERVENTION.
+- Images et icones : resources.qrc (icons/nav/ = icones blanches de la sidebar,
+  images/campagnes/ = images du module Campagnes).
+- style.qss : style global ; les regles des tableaux/listes deroulantes sont limitees
+  aux pages Employes et Interventions pour ne pas modifier les autres modules.
+
+AJOUTER UN MODULE
+1. Copier ses fichiers, renommer sa classe MainWindow en <Module>Page (et son .ui).
+2. Dans son constructeur : setWindowFlags(Qt::Widget) puis masquer sa sidebar/en-tete.
+3. L'ajouter dans FireStationManager.pro, puis dans mainwindow.cpp a la place du placeholder.

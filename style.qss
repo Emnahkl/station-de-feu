@@ -8,12 +8,17 @@ QToolTip { color: #1f2937; background: #ffffff; border: 1px solid #d5d9df; }
 /* ---------------- Sidebar (image + voile rouge) ---------------- */
 QFrame#sidebar { border-image: url(:/images/sidebar_bg.png) 0 0 0 0 stretch stretch; }
 QFrame#sidebar QLabel { background: transparent; border: none; }
+QLabel#sidebarNomApp { color: #ffffff; font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-top: 6px; }
+QLabel#sidebarSlogan { color: #f6dada; font-size: 10px; font-weight: bold; letter-spacing: 1px; padding-top: 3px; min-height: 16px; }
 QFrame#sidebar QPushButton {
-    background: transparent; color: #ffffff; border: none; border-left: 4px solid transparent;
-    text-align: left; padding: 11px 18px 11px 22px; font-size: 14px; min-height: 22px;
+    background: transparent; color: #ffffff; border: 1px solid transparent; border-radius: 8px;
+    text-align: left; padding: 10px 12px; font-size: 14px; font-weight: 600; min-height: 22px;
 }
-QFrame#sidebar QPushButton:hover   { background: rgba(0,0,0,0.22); }
-QFrame#sidebar QPushButton:checked { background: rgba(0,0,0,0.58); font-weight: bold; border-left: 4px solid #ffffff; }
+QFrame#sidebar QPushButton:hover   { background: rgba(255,255,255,0.12); }
+QFrame#sidebar QPushButton:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #d3122a, stop:1 #a50e1f);
+    border: 1px solid #e5394a; font-weight: bold;
+}
 
 /* ---------------- Barre du haut ---------------- */
 QLineEdit#searchEdit {
@@ -33,9 +38,9 @@ QFrame#filtersFrame, QFrame#actionsFrame { background: white; border: 1px solid 
 QFrame#filtersFrame QLabel { border: none; color: #4b5563; }
 QFrame#tableFrame { background: white; border: 1px solid #e3e6ea; border-radius: 4px; }
 
-QComboBox { background: white; border: 1px solid #cfd4da; border-radius: 4px; padding: 6px 10px; min-width: 190px; }
-QComboBox::drop-down { border: none; width: 22px; }
-QComboBox QAbstractItemView { background: white; selection-background-color: #fde2e2; selection-color: #1f2937; border: 1px solid #cfd4da; }
+QWidget#EmployesPage QComboBox, QWidget#InterventionsPage QComboBox, QFrame#rightPanel QComboBox { background: white; border: 1px solid #cfd4da; border-radius: 4px; padding: 6px 10px; min-width: 190px; }
+QWidget#EmployesPage QComboBox::drop-down, QWidget#InterventionsPage QComboBox::drop-down, QFrame#rightPanel QComboBox::drop-down { border: none; width: 22px; }
+QWidget#EmployesPage QComboBox QAbstractItemView, QWidget#InterventionsPage QComboBox QAbstractItemView, QFrame#rightPanel QComboBox QAbstractItemView { background: white; selection-background-color: #fde2e2; selection-color: #1f2937; border: 1px solid #cfd4da; }
 
 /* ---------------- Actions page Interventions ---------------- */
 QFrame#actionsFrame QPushButton {
@@ -68,12 +73,12 @@ QLabel#lblTermineeTitle  { color: #15803d; font-weight: bold; }
 QLabel#lblEnCours, QLabel#lblEnAttente, QLabel#lblTerminee { font-size: 26px; font-weight: bold; }
 
 /* ---------------- Tableaux ---------------- */
-QTableWidget { background: white; alternate-background-color: #f5f6f8; border: none; selection-background-color: #fde2e2; selection-color: #1f2937; outline: 0; }
-QTableWidget::item { padding: 0px 6px; border-bottom: 1px solid #e8eaee; }
-QTableWidget QWidget { background: transparent; }
-QHeaderView { background: #1f2d3d; }
-QHeaderView::section { background: #1f2d3d; color: white; font-weight: bold; padding: 12px 4px; border: none; border-right: 1px solid #2f4054; }
-QTableCornerButton::section { background: #1f2d3d; border: none; }
+QWidget#EmployesPage QTableWidget, QWidget#InterventionsPage QTableWidget, QFrame#rightPanel QTableWidget { background: white; alternate-background-color: #f5f6f8; border: none; selection-background-color: #fde2e2; selection-color: #1f2937; outline: 0; }
+QWidget#EmployesPage QTableWidget::item, QWidget#InterventionsPage QTableWidget::item, QFrame#rightPanel QTableWidget::item { padding: 0px 6px; border-bottom: 1px solid #e8eaee; }
+QWidget#EmployesPage QTableWidget QWidget, QWidget#InterventionsPage QTableWidget QWidget, QFrame#rightPanel QTableWidget QWidget { background: transparent; }
+QWidget#EmployesPage QHeaderView, QWidget#InterventionsPage QHeaderView, QFrame#rightPanel QHeaderView { background: #1f2d3d; }
+QWidget#EmployesPage QHeaderView::section, QWidget#InterventionsPage QHeaderView::section, QFrame#rightPanel QHeaderView::section { background: #1f2d3d; color: white; font-weight: bold; padding: 12px 4px; border: none; border-right: 1px solid #2f4054; }
+QWidget#EmployesPage QTableCornerButton::section, QWidget#InterventionsPage QTableCornerButton::section, QFrame#rightPanel QTableCornerButton::section { background: #1f2d3d; border: none; }
 QScrollBar:vertical { background: transparent; width: 10px; }
 QScrollBar::handle:vertical { background: #c3c8d0; border-radius: 5px; min-height: 30px; }
 QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
