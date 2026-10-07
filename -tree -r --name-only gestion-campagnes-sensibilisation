@@ -1,0 +1,29 @@
+* [33ma73ce0c[m[33m ([m[1;31morigin/gestion-des-zones[m[33m)[m Ajout de la gestion des zones
+* [33mecc7e06[m[33m ([m[1;31morigin/gestion-equipements-integration[m[33m)[m Ajout gestion des equipements
+* [33mf04227b[m[33m ([m[1;31morigin/integrationF[m[33m)[m Menu principal, module Zones, Employes d origine, sidebar simplifiee
+* [33mcbaaac5[m Integration des modules + fenetre de connexion
+[31m|[m * [33m9939a91[m[33m ([m[1;31morigin/integration-vehicule-et-campagne[m[33m)[m Add integrated vehicle and campaign app
+[31m|[m [32m|[m * [33m0cb6bd3[m[33m ([m[1;31morigin/integration_emplyee_intervention[m[33m)[m Merge pull request #1 from Emnahkl/integrate/intervention
+[31m|[m [32m|[m[31m/[m[34m|[m 
+[31m|[m[31m/[m[32m|[m [34m|[m 
+[31m|[m [32m|[m * [33mc1b4b1d[m[33m ([m[1;31morigin/integrate/intervention[m[33m)[m Retrait du dossier build et ajout du .gitignore
+[31m|[m [32m|[m * [33m83cd2b6[m Integration du module Intervention
+[31m|[m [32m|[m[31m/[m  
+[31m|[m[31m/[m[32m|[m   
+* [32m|[m [33m0a49e2c[m Integration employee intervention
+ [32m/[m  
+[32m|[m *   [33m28e880f[m[33m ([m[1;31morigin/gestion-d'equipements[m[33m)[m Merge remote-tracking branch 'origin/gestion-d'equipements' into gestion-d'equipements
+[32m|[m [35m|[m[36m\[m  
+[32m|[m [35m|[m * [33mc41efdd[m Gestion des equipements
+[32m|[m * [36m|[m [33mc59fd0a[m Gestion des equipements
+[32m|[m  [36m/[m  
+[32m|[m [36m|[m * [33mafe47a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mintegrate/campagne_zone[m[33m, [m[1;31morigin/gestion-campagnes-sensibilisation[m[33m, [m[1;32mgestion-campagnes-sensibilisation[m[33m)[m Module Gestion des campagnes de sensibilisation
+[32m|[m [36m|[m * [33mb0559d6[m[33m ([m[1;31morigin/gestion-vehicule[m[33m)[m Keep vehicle branch focused on vehicle app
+[32m|[m [36m|[m[32m/[m  
+[32m|[m[32m/[m[36m|[m   
+* [36m|[m [33m4b6f36f[m Add integration folder with both Qt projects
+* [36m|[m [33mcd17435[m Rebuild vehicle management project
+* [36m|[m [33mcde58ee[m Ajout .gitignore
+[36m|[m[36m/[m  
+* [33ma5ee42d[m[33m ([m[1;31morigin/intervention[m[33m, [m[1;31morigin/gestion-zones[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mintervention[m[33m, [m[1;32mgestion-zones[m[33m)[m replace branch content
+* [33m34c618e[m[33m ([m[1;31morigin/gestion-des-employes[m[33m)[m Ajout du module gestion des employes
