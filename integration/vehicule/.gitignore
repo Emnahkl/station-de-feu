@@ -1,8 +1,0 @@
-﻿build*/
-*.pro.user
-*.o
-*.obj
-*.exe
-Makefile*
-debug/
-release/
