@@ -1,5 +1,5 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef CAMPAGNEWINDOW_H
+#define CAMPAGNEWINDOW_H
 
 #include <QImage>
 #include <QMainWindow>
@@ -13,13 +13,13 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class CampagneWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit CampagneWindow(QWidget *parent = nullptr);
+    ~CampagneWindow();
 
 private slots:
     // Navigation (QStackedWidget)
@@ -71,4 +71,4 @@ private:
     QImage m_affiche;
 };
 
-#endif // MAINWINDOW_H
+#endif // CAMPAGNEWINDOW_H

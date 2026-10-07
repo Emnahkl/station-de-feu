@@ -4,6 +4,7 @@
 #include "ui/ZoneManagementPage.h"
 #include "widgets/LogoWidget.h"
 #include "widgets/SidebarBackground.h"
+#include "campagnewindow.h"
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
@@ -39,6 +40,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
     m_stack = new QStackedWidget;
     m_stack->addWidget(new ZoneManagementPage(m_repo));        // index 0 : Carte
     m_stack->addWidget(placeholderPage(QString()));            // index 1 : autres modules
+    auto* campagnes = new CampagneWindow;                      // index 2 : Campagnes
+    campagnes->setWindowFlags(Qt::Widget);
+    m_stack->addWidget(campagnes);
     v->addWidget(m_stack, 1);
     h->addWidget(content, 1);
     setCentralWidget(central);
@@ -59,7 +63,7 @@ QWidget* MainWindow::buildSidebar()
     struct Entry { const char* icon; const char* text; };
     const Entry entries[] = {
         {"🏠", "Tableau de bord"}, {"🚨", "Interventions"}, {"👥", "Équipe"}, {"🚒", "Véhicules"},
-        {"🗺", "Carte"}, {"📅", "Planning"}, {"📄", "Rapports"}, {"⚙", "Paramètres"},
+        {"🗺", "Carte"}, {"📢", "Campagnes"}, {"📅", "Planning"}, {"📄", "Rapports"}, {"⚙", "Paramètres"},
     };
     auto* group = new QButtonGroup(this);
     group->setExclusive(true);
@@ -71,11 +75,15 @@ QWidget* MainWindow::buildSidebar()
         group->addButton(b);
         v->addWidget(b);
         const bool isMap = (text == "Carte");
+        const bool isCampagne = (text == "Campagnes");
         if (isMap) b->setChecked(true);
-        connect(b, &QPushButton::clicked, this, [this, isMap, text] {
+        connect(b, &QPushButton::clicked, this, [this, isMap, isCampagne, text] {
             if (isMap) {
                 m_stack->setCurrentIndex(0);
                 m_title->setText(QString::fromUtf8("Carte des zones à risque"));
+            } else if (isCampagne) {
+                m_stack->setCurrentIndex(2);
+                m_title->setText(QString::fromUtf8("Campagnes de sensibilisation"));
             } else {
                 auto* lbl = m_stack->widget(1)->findChild<QLabel*>("placeholderLabel");
                 if (lbl) lbl->setText(QString::fromUtf8("Module « %1 »\n\nIntégré par un autre membre de l'équipe.").arg(text));

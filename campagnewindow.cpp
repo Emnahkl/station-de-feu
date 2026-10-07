@@ -1,5 +1,5 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include "campagnewindow.h"
+#include "ui_campagnewindow.h"
 
 #include "barchartwidget.h"
 #include "campagne.h"
@@ -29,7 +29,7 @@
 enum Page { PageDashboard = 0, PageEmployes, PageVehicules, PageEquipements,
             PageInterventions, PageCampagnes, PageZones };
 
-MainWindow::MainWindow(QWidget *parent)
+CampagneWindow::CampagneWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -61,7 +61,7 @@ MainWindow::MainWindow(QWidget *parent)
     naviguer(PageCampagnes, QString::fromUtf8("Gestion des campagnes de sensibilisation"));
 }
 
-MainWindow::~MainWindow()
+CampagneWindow::~CampagneWindow()
 {
     delete m_model;
     delete ui;
@@ -69,23 +69,23 @@ MainWindow::~MainWindow()
 
 // ---------------------------------------------------------------- Navigation
 
-void MainWindow::naviguer(int index, const QString &titre)
+void CampagneWindow::naviguer(int index, const QString &titre)
 {
     ui->stackedWidget->setCurrentIndex(index);
     ui->label_pageTitle->setText(titre);
 }
 
-void MainWindow::on_pushButton_navDashboard_clicked() { naviguer(PageDashboard, "Tableau de bord"); }
-void MainWindow::on_pushButton_navEmployes_clicked() { naviguer(PageEmployes, QString::fromUtf8("Gestion des employés")); }
-void MainWindow::on_pushButton_navVehicules_clicked() { naviguer(PageVehicules, QString::fromUtf8("Gestion des véhicules")); }
-void MainWindow::on_pushButton_navEquipements_clicked() { naviguer(PageEquipements, QString::fromUtf8("Gestion des équipements")); }
-void MainWindow::on_pushButton_navInterventions_clicked() { naviguer(PageInterventions, "Gestion des interventions"); }
-void MainWindow::on_pushButton_navCampagnes_clicked() { naviguer(PageCampagnes, QString::fromUtf8("Gestion des campagnes de sensibilisation")); }
-void MainWindow::on_pushButton_navZones_clicked() { naviguer(PageZones, "Gestion des zones de couverture"); }
+void CampagneWindow::on_pushButton_navDashboard_clicked() { naviguer(PageDashboard, "Tableau de bord"); }
+void CampagneWindow::on_pushButton_navEmployes_clicked() { naviguer(PageEmployes, QString::fromUtf8("Gestion des employés")); }
+void CampagneWindow::on_pushButton_navVehicules_clicked() { naviguer(PageVehicules, QString::fromUtf8("Gestion des véhicules")); }
+void CampagneWindow::on_pushButton_navEquipements_clicked() { naviguer(PageEquipements, QString::fromUtf8("Gestion des équipements")); }
+void CampagneWindow::on_pushButton_navInterventions_clicked() { naviguer(PageInterventions, "Gestion des interventions"); }
+void CampagneWindow::on_pushButton_navCampagnes_clicked() { naviguer(PageCampagnes, QString::fromUtf8("Gestion des campagnes de sensibilisation")); }
+void CampagneWindow::on_pushButton_navZones_clicked() { naviguer(PageZones, "Gestion des zones de couverture"); }
 
 // ---------------------------------------------------------------- Chargements
 
-void MainWindow::chargerZonesEtEmployes()
+void CampagneWindow::chargerZonesEtEmployes()
 {
     ui->comboBox_zone->clear();
     QSqlQuery qz("SELECT ID_ZONE, NOM, NIVEAU_RISQUE FROM ZONE_COUVERTURE ORDER BY NOM");
@@ -102,7 +102,7 @@ void MainWindow::chargerZonesEtEmployes()
                                         qe.value(0).toInt());
 }
 
-void MainWindow::chargerListesCampagnes()
+void CampagneWindow::chargerListesCampagnes()
 {
     const int idImpact = ui->comboBox_campagneImpact->currentData().toInt();
     const int idAffiche = ui->comboBox_afficheCampagne->currentData().toInt();
@@ -124,7 +124,7 @@ void MainWindow::chargerListesCampagnes()
     if (i2 >= 0) ui->comboBox_afficheCampagne->setCurrentIndex(i2);
 }
 
-void MainWindow::rafraichirListe()
+void CampagneWindow::rafraichirListe()
 {
     static const char *criteres[] = {"THEME", "PUBLIC_CIBLE", "TITRE", "LIEU"};
     static const char *tris[] = {"DATE_CAMPAGNE DESC", "DATE_CAMPAGNE ASC",
@@ -145,7 +145,7 @@ void MainWindow::rafraichirListe()
 
 // ---------------------------------------------------------------- CRUD
 
-bool MainWindow::lireFormulaire(Campagne &c)
+bool CampagneWindow::lireFormulaire(Campagne &c)
 {
     c.setId(ui->lineEdit_id->text().toInt());
     c.setTitre(ui->lineEdit_titre->text());
@@ -165,7 +165,7 @@ bool MainWindow::lireFormulaire(Campagne &c)
     return true;
 }
 
-void MainWindow::on_pushButton_ajouter_clicked()
+void CampagneWindow::on_pushButton_ajouter_clicked()
 {
     Campagne c;
     if (!lireFormulaire(c)) return;
@@ -180,7 +180,7 @@ void MainWindow::on_pushButton_ajouter_clicked()
     }
 }
 
-void MainWindow::on_pushButton_modifier_clicked()
+void CampagneWindow::on_pushButton_modifier_clicked()
 {
     Campagne c;
     if (!lireFormulaire(c)) return;
@@ -194,7 +194,7 @@ void MainWindow::on_pushButton_modifier_clicked()
     }
 }
 
-void MainWindow::on_pushButton_supprimer_clicked()
+void CampagneWindow::on_pushButton_supprimer_clicked()
 {
     const int id = ui->lineEdit_id->text().toInt();
     if (id <= 0) {
@@ -216,7 +216,7 @@ void MainWindow::on_pushButton_supprimer_clicked()
     }
 }
 
-void MainWindow::on_pushButton_vider_clicked()
+void CampagneWindow::on_pushButton_vider_clicked()
 {
     ui->lineEdit_id->setText(QString::number(Campagne::prochainId()));
     ui->lineEdit_titre->clear();
@@ -229,7 +229,7 @@ void MainWindow::on_pushButton_vider_clicked()
     ui->lineEdit_titre->setFocus();
 }
 
-void MainWindow::on_tableView_campagnes_clicked(const QModelIndex &index)
+void CampagneWindow::on_tableView_campagnes_clicked(const QModelIndex &index)
 {
     const int id = m_model->data(m_model->index(index.row(), 0)).toInt();
     Campagne c;
@@ -248,13 +248,13 @@ void MainWindow::on_tableView_campagnes_clicked(const QModelIndex &index)
 
 // ---------------------------------------------------------------- Recherche / tri
 
-void MainWindow::on_lineEdit_recherche_textChanged(const QString &) { rafraichirListe(); }
-void MainWindow::on_comboBox_critere_currentIndexChanged(int) { rafraichirListe(); }
-void MainWindow::on_comboBox_tri_currentIndexChanged(int) { rafraichirListe(); }
+void CampagneWindow::on_lineEdit_recherche_textChanged(const QString &) { rafraichirListe(); }
+void CampagneWindow::on_comboBox_critere_currentIndexChanged(int) { rafraichirListe(); }
+void CampagneWindow::on_comboBox_tri_currentIndexChanged(int) { rafraichirListe(); }
 
 // ---------------------------------------------------------------- Export
 
-void MainWindow::on_pushButton_exportPdf_clicked()
+void CampagneWindow::on_pushButton_exportPdf_clicked()
 {
     const QString chemin = QFileDialog::getSaveFileName(
         this, "Exporter en PDF",
@@ -291,7 +291,7 @@ void MainWindow::on_pushButton_exportPdf_clicked()
     QMessageBox::information(this, "Export PDF", QString::fromUtf8("Fichier enregistré :\n") + chemin);
 }
 
-void MainWindow::on_pushButton_exportExcel_clicked()
+void CampagneWindow::on_pushButton_exportExcel_clicked()
 {
     const QString chemin = QFileDialog::getSaveFileName(
         this, "Exporter pour Excel",
@@ -327,7 +327,7 @@ void MainWindow::on_pushButton_exportExcel_clicked()
 
 // ---------------------------------------------------------------- Statistiques
 
-void MainWindow::on_pushButton_actualiserStats_clicked()
+void CampagneWindow::on_pushButton_actualiserStats_clicked()
 {
     const bool parTheme = ui->comboBox_statCritere->currentIndex() == 0;
     m_chart->setData(parTheme ? Campagne::statistiquesParTheme() : Campagne::statistiquesParZone(),
@@ -340,14 +340,14 @@ void MainWindow::on_pushButton_actualiserStats_clicked()
                                          .arg(q.value(0).toInt()).arg(q.value(1).toInt()));
 }
 
-void MainWindow::on_comboBox_statCritere_currentIndexChanged(int)
+void CampagneWindow::on_comboBox_statCritere_currentIndexChanged(int)
 {
     if (m_chart) on_pushButton_actualiserStats_clicked();
 }
 
 // ---------------------------------------------------------------- Métier innovant 1 : ciblage
 
-void MainWindow::on_pushButton_lancerCiblage_clicked()
+void CampagneWindow::on_pushButton_lancerCiblage_clicked()
 {
     const QList<CiblageZone> res = Campagne::ciblageAutomatique();
     QTableWidget *t = ui->tableWidget_ciblage;
@@ -381,7 +381,7 @@ void MainWindow::on_pushButton_lancerCiblage_clicked()
     }
 }
 
-void MainWindow::on_pushButton_planifierZone_clicked()
+void CampagneWindow::on_pushButton_planifierZone_clicked()
 {
     const int ligne = qMax(0, ui->tableWidget_ciblage->currentRow());
     QTableWidgetItem *item = ui->tableWidget_ciblage->item(ligne, 0);
@@ -395,7 +395,7 @@ void MainWindow::on_pushButton_planifierZone_clicked()
 
 // ---------------------------------------------------------------- Métier innovant 2 : impact
 
-void MainWindow::on_pushButton_evaluerImpact_clicked()
+void CampagneWindow::on_pushButton_evaluerImpact_clicked()
 {
     const int id = ui->comboBox_campagneImpact->currentData().toInt();
     if (id <= 0) {
@@ -422,7 +422,7 @@ void MainWindow::on_pushButton_evaluerImpact_clicked()
 
 // ---------------------------------------------------------------- Service complémentaire : affiche
 
-QString MainWindow::sloganPourTheme(const QString &theme) const
+QString CampagneWindow::sloganPourTheme(const QString &theme) const
 {
     if (theme.contains("forêt")) return QString::fromUtf8("Une étincelle suffit. Protégeons nos forêts !");
     if (theme.contains("Premiers")) return QString::fromUtf8("Les bons gestes sauvent des vies.");
@@ -432,7 +432,7 @@ QString MainWindow::sloganPourTheme(const QString &theme) const
     return QString::fromUtf8("Le feu ne prévient pas. Vous, si !");
 }
 
-QImage MainWindow::genererAffiche(int idCampagne, const QString &sloganSaisi) const
+QImage CampagneWindow::genererAffiche(int idCampagne, const QString &sloganSaisi) const
 {
     Campagne c;
     if (!Campagne::charger(idCampagne, c)) return QImage();
@@ -530,7 +530,7 @@ QImage MainWindow::genererAffiche(int idCampagne, const QString &sloganSaisi) co
     return img;
 }
 
-void MainWindow::on_pushButton_genererAffiche_clicked()
+void CampagneWindow::on_pushButton_genererAffiche_clicked()
 {
     const int id = ui->comboBox_afficheCampagne->currentData().toInt();
     if (id <= 0) {
@@ -545,7 +545,7 @@ void MainWindow::on_pushButton_genererAffiche_clicked()
     ui->pushButton_enregistrerAffiche->setEnabled(true);
 }
 
-void MainWindow::on_pushButton_enregistrerAffiche_clicked()
+void CampagneWindow::on_pushButton_enregistrerAffiche_clicked()
 {
     if (m_affiche.isNull()) return;
     const QString chemin = QFileDialog::getSaveFileName(
