@@ -1,19 +1,23 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "integ1/vehicule.h"
 
 #include <QAbstractItemView>
 #include <QColor>
+#include <QCalendarWidget>
 #include <QDate>
 #include <QDateEdit>
 #include <QDialog>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QFont>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QListWidget>
 #include <QLineEdit>
 #include <QLocale>
 #include <QMap>
@@ -27,16 +31,19 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextDocument>
+#include <QTextCharFormat>
 #include <QTextEdit>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSpinBox>
+#include <QRegularExpression>
+#include <QSet>
 #include <algorithm>
 
 namespace {
 const QStringList vehicleTypes = {"Camion", "Échelle", "Ambulance", "Véhicule léger", "Camion-citerne", "Véhicule de secours", "Autre"};
-const QStringList vehicleStatuses = {"Disponible", "En intervention", "En maintenance"};
+const QStringList vehicleStatuses = {"Disponible", "En intervention", "En maintenance", "Hors service"};
 
 QString maintenanceDateString(const QJsonObject &vehicle)
 {
@@ -104,9 +111,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->statusFilter->addItems(vehicleStatuses);
     ui->maintenanceDate->setDate(QDate::currentDate());
     ui->maintenanceDate->setMaximumDate(QDate::currentDate().addYears(10));
-    ui->saveVehicle->setProperty("editId", -1);
+    ui->maintenanceMileage->setMinimum(0);
+    ui->maintenanceMileage->setMaximum(99999999);
+    ui->maintenanceMileage->setSpecialValueText(QStringLiteral("Inconnu"));
+    ui->saveVehicle->setProperty("editImmat", QString());
 
-    ui->vehicleTable->setHorizontalHeaderLabels({"ID", "Immatriculation", "Type", "Modèle", "État", "ID zone", "Kilométrage", "Dernière maintenance", "Actions"});
+    ui->vehicleTable->setHorizontalHeaderLabels({"Clé", "Immatriculation", "Type", "Modèle", "État", "Zone", "Kilométrage", "Dernière maintenance", "Actions"});
+    ui->vehicleTable->setColumnHidden(0, true);
+    ui->vehicleTable->setColumnHidden(5, true); // ID_ZONE does not belong to VEHICULES.
     ui->vehicleTable->setAlternatingRowColors(true);
     ui->vehicleTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->vehicleTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -115,6 +127,12 @@ MainWindow::MainWindow(QWidget *parent)
     ui->vehicleTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->vehicleTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->vehicleTable->horizontalHeader()->setSectionResizeMode(8, QHeaderView::ResizeToContents);
+
+    // L'identifiant de zone et les notes ne font pas partie du modèle VEHICULES.
+    ui->zoneLabel->hide();
+    ui->zone->hide();
+    ui->notesLabel->hide();
+    ui->notes->hide();
 
     setStyleSheet(R"(
         * { font-family: "Segoe UI", Arial; font-size: 13px; color: #253247; }
@@ -172,7 +190,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->statusFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::refreshTable);
     connect(ui->sortCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::refreshTable);
     connect(ui->notificationsButton, &QToolButton::clicked, this, &MainWindow::showMaintenanceAlerts);
-    connect(ui->calendarButton, &QToolButton::clicked, this, &MainWindow::showMaintenanceAlerts);
+    connect(ui->calendarButton, &QToolButton::clicked, this, &MainWindow::showVehicleCalendar);
     connect(ui->maintenanceAlertsButton, &QPushButton::clicked, this, &MainWindow::showMaintenanceAlerts);
     connect(ui->statisticsButton, &QPushButton::clicked, this, &MainWindow::showStatistics);
     connect(ui->recommendButton, &QPushButton::clicked, this, &MainWindow::recommendVehicle);
@@ -187,58 +205,43 @@ MainWindow::~MainWindow() { delete ui; }
 
 void MainWindow::loadVehicles()
 {
-    const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/vehicles.json";
-    QFile file(path);
-    if (file.exists() && file.open(QIODevice::ReadOnly)) {
-        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-        if (doc.isArray()) vehicles = doc.array();
-    }
-    if (!vehicles.isEmpty()) return;
-
-    const QStringList registrations = {"FT-001", "FT-002", "FT-003", "FT-004", "FT-005", "FT-006", "FT-007", "FT-008"};
-    const QStringList types = {"Camion", "Échelle", "Ambulance", "Véhicule léger", "Camion-citerne", "Véhicule de secours", "Échelle", "Véhicule léger"};
-    const QStringList models = {"Renault D17", "Magirus 32m", "Mercedes Sprinter", "Dacia Duster", "MAN TGM", "Ford Ranger", "Iveco Magirus", "Renault Kangoo"};
-    const QStringList statuses = {"Disponible", "En intervention", "Disponible", "En maintenance", "Disponible", "Disponible", "En maintenance", "Disponible"};
-    const QStringList dates = {"2025-04-12", "2025-09-30", "2025-04-08", "2025-04-15", "2025-04-10", "2025-03-22", "2025-03-05", "2025-02-18"};
-    for (int i = 0; i < registrations.size(); ++i) {
+    QString error;
+    const QList<Vehicule> rows = Vehicule::afficher(QString(), QString(), QString(), QStringLiteral("IMMATRICULATION ASC"), &error);
+    vehicles = QJsonArray();
+    for (const Vehicule &record : rows) {
         QJsonObject v;
-        v["id"] = i + 1;
-        v["registration"] = registrations[i];
-        v["type"] = types[i];
-        v["model"] = models[i];
-        v["status"] = statuses[i];
-        v["zone"] = QString("Z-%1").arg((i % 3) + 1, 2, 10, QChar('0'));
-        v["mileage"] = i == 2 ? 11000 : (i == 5 ? 3500 : 0);
-        v["maintenanceMileage"] = v.value("mileage").toInt();
-        v["maintenanceDate"] = dates[i];
+        v["id"] = record.immatriculation;
+        v["registration"] = record.immatriculation;
+        v["type"] = record.type;
+        v["model"] = record.modele;
+        v["status"] = record.etat;
+        v["zone"] = QString();
+        v["mileage"] = record.kilometrage;
+        v["maintenanceMileage"] = record.kilometrageDerniereMaintenance;
+        v["maintenanceDate"] = record.derniereMaintenance.toString(Qt::ISODate);
         v["notes"] = QString();
-        v["createdAt"] = QDate::currentDate().addDays(-i).toString(Qt::ISODate);
+        v["createdAt"] = QString();
         vehicles.append(v);
     }
-    saveVehicles();
+    if (!error.isEmpty()) QMessageBox::warning(this, "Lecture de la base", error);
 }
 
-void MainWindow::saveVehicles() const
-{
-    const QString directory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(directory);
-    QFile file(directory + "/vehicles.json");
-    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        file.write(QJsonDocument(vehicles).toJson(QJsonDocument::Indented));
-}
-
-int MainWindow::indexForId(int id) const
+int MainWindow::indexForRegistration(const QString &immatriculation) const
 {
     for (int i = 0; i < vehicles.size(); ++i)
-        if (vehicles[i].toObject().value("id").toInt() == id) return i;
+        if (vehicles[i].toObject().value("registration").toString().compare(immatriculation, Qt::CaseInsensitive) == 0) return i;
     return -1;
 }
 
 bool MainWindow::isMaintenanceDue(const QJsonObject &v) const
 {
     const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
-    const int kmSinceService = v.value("mileage").toInt() - v.value("maintenanceMileage").toInt();
-    return (date.isValid() && date.daysTo(QDate::currentDate()) >= 365) || kmSinceService >= 10000;
+    const bool dateDue = date.isValid() && date.daysTo(QDate::currentDate()) >= 365;
+    const int currentKm = v.value("mileage").toInt();
+    const int serviceKm = v.value("maintenanceMileage").toInt(-1);
+    const bool mileageDue = serviceKm >= 0 && currentKm >= serviceKm
+        && currentKm - serviceKm >= 10000;
+    return dateDue || mileageDue;
 }
 
 void MainWindow::refreshTable()
@@ -261,7 +264,7 @@ void MainWindow::refreshTable()
         case 2: return a.value("mileage").toInt() > b.value("mileage").toInt();
         case 3: return a.value("status").toString() < b.value("status").toString();
         case 4: return a.value("registration").toString() < b.value("registration").toString();
-        default: return a.value("createdAt").toString() > b.value("createdAt").toString();
+        default: return a.value("registration").toString() < b.value("registration").toString();
         }
     });
 
@@ -269,13 +272,13 @@ void MainWindow::refreshTable()
     for (const QJsonObject &v : filtered) {
         const int row = ui->vehicleTable->rowCount();
         ui->vehicleTable->insertRow(row);
-        const int id = v.value("id").toInt();
-        const QStringList cells = {QString::number(id), v.value("registration").toString(), v.value("type").toString(),
+        const QString immatriculation = v.value("registration").toString();
+        const QStringList cells = {immatriculation, immatriculation, v.value("type").toString(),
             v.value("model").toString(), v.value("status").toString(), v.value("zone").toString(),
             QLocale(QLocale::French).toString(v.value("mileage").toInt()) + " km", maintenanceDateString(v)};
         for (int col = 0; col < cells.size(); ++col) {
             auto *item = new QTableWidgetItem(cells[col]);
-            if (col == 0) item->setData(Qt::UserRole, id);
+            if (col == 0) item->setData(Qt::UserRole, immatriculation);
             if (col == 4) {
                 const QString status = v.value("status").toString();
                 item->setForeground(status == "Disponible" ? QColor("#07845e") : (status == "En intervention" ? QColor("#c52831") : QColor("#b56b00")));
@@ -298,8 +301,8 @@ void MainWindow::refreshTable()
         actionLayout->addWidget(edit);
         actionLayout->addWidget(remove);
         ui->vehicleTable->setCellWidget(row, 8, actions);
-        connect(edit, &QToolButton::clicked, this, [this, id]() { editVehicle(id); });
-        connect(remove, &QToolButton::clicked, this, [this, id]() { deleteVehicle(id); });
+        connect(edit, &QToolButton::clicked, this, [this, immatriculation]() { editVehicle(immatriculation); });
+        connect(remove, &QToolButton::clicked, this, [this, immatriculation]() { deleteVehicle(immatriculation); });
     }
     refreshDashboard();
 }
@@ -319,7 +322,7 @@ void MainWindow::refreshDashboard()
 
 void MainWindow::resetForm()
 {
-    ui->saveVehicle->setProperty("editId", -1);
+    ui->saveVehicle->setProperty("editImmat", QString());
     ui->formTitle->setText("Ajouter un véhicule");
     ui->plate->clear();
     ui->type->setCurrentIndex(0);
@@ -333,12 +336,12 @@ void MainWindow::resetForm()
     ui->plate->setFocus();
 }
 
-void MainWindow::editVehicle(int id)
+void MainWindow::editVehicle(const QString &immatriculation)
 {
-    const int index = indexForId(id);
+    const int index = indexForRegistration(immatriculation);
     if (index < 0) return;
     const QJsonObject v = vehicles[index].toObject();
-    ui->saveVehicle->setProperty("editId", id);
+    ui->saveVehicle->setProperty("editImmat", immatriculation);
     ui->formTitle->setText("Modifier le véhicule");
     ui->plate->setText(v.value("registration").toString());
     ui->type->setCurrentText(v.value("type").toString());
@@ -348,18 +351,22 @@ void MainWindow::editVehicle(int id)
     const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
     ui->maintenanceDate->setDate(date.isValid() ? date : QDate::currentDate());
     ui->mileage->setValue(v.value("mileage").toInt());
-    ui->maintenanceMileage->setValue(v.value("maintenanceMileage").toInt());
+    ui->maintenanceMileage->setValue(qMax(0, v.value("maintenanceMileage").toInt(-1)));
     ui->notes->setPlainText(v.value("notes").toString());
 }
 
-void MainWindow::deleteVehicle(int id)
+void MainWindow::deleteVehicle(const QString &immatriculation)
 {
-    const int index = indexForId(id);
+    const int index = indexForRegistration(immatriculation);
     if (index < 0) return;
     const QString plate = vehicles[index].toObject().value("registration").toString();
     if (QMessageBox::question(this, "Supprimer le véhicule", "Supprimer le véhicule " + plate + " ?") != QMessageBox::Yes) return;
-    vehicles.removeAt(index);
-    saveVehicles();
+    QString error;
+    if (!Vehicule::supprimer(immatriculation, &error)) {
+        QMessageBox::warning(this, "Suppression impossible", error);
+        return;
+    }
+    loadVehicles();
     refreshTable();
 }
 
@@ -371,39 +378,39 @@ void MainWindow::saveVehicle()
         QMessageBox::warning(this, "Informations manquantes", "Renseignez l’immatriculation et le modèle du véhicule.");
         return;
     }
-    const int editId = ui->saveVehicle->property("editId").toInt();
+    const QString ancienneImmatriculation = ui->saveVehicle->property("editImmat").toString();
     for (const QJsonValue &value : vehicles) {
         const QJsonObject existing = value.toObject();
-        if (existing.value("id").toInt() != editId && existing.value("registration").toString().compare(registration, Qt::CaseInsensitive) == 0) {
+        if (existing.value("registration").toString().compare(ancienneImmatriculation, Qt::CaseInsensitive) != 0
+            && existing.value("registration").toString().compare(registration, Qt::CaseInsensitive) == 0) {
             QMessageBox::warning(this, "Immatriculation existante", "Cette immatriculation est déjà enregistrée.");
             return;
         }
     }
 
-    QJsonObject v;
-    if (editId >= 0) {
-        const int index = indexForId(editId);
-        if (index >= 0) v = vehicles[index].toObject();
-    } else {
-        int nextId = 1;
-        for (const QJsonValue &value : vehicles) nextId = qMax(nextId, value.toObject().value("id").toInt() + 1);
-        v["id"] = nextId;
-        v["createdAt"] = QDate::currentDate().toString(Qt::ISODate);
+    Vehicule v;
+    v.immatriculation = registration;
+    v.type = ui->type->currentText();
+    v.etat = ui->status->currentText();
+    v.modele = model;
+    v.kilometrage = ui->mileage->value();
+    v.kilometrageDerniereMaintenance = ui->maintenanceMileage->value() > 0
+        ? ui->maintenanceMileage->value() : -1;
+    if (v.kilometrageDerniereMaintenance > v.kilometrage) {
+        QMessageBox::warning(this, "Kilométrage invalide",
+            "Le kilométrage de la dernière maintenance ne peut pas dépasser le kilométrage actuel.");
+        return;
     }
-    v["registration"] = registration;
-    v["type"] = ui->type->currentText();
-    v["model"] = model;
-    v["status"] = ui->status->currentText();
-    v["zone"] = ui->zone->text().trimmed();
-    v["maintenanceDate"] = ui->maintenanceDate->date().toString(Qt::ISODate);
-    v["mileage"] = ui->mileage->value();
-    v["maintenanceMileage"] = ui->maintenanceMileage->value();
-    v["notes"] = ui->notes->toPlainText().trimmed();
-
-    const int index = indexForId(v.value("id").toInt());
-    if (index >= 0) vehicles[index] = v;
-    else vehicles.append(v);
-    saveVehicles();
+    v.derniereMaintenance = ui->maintenanceDate->date();
+    QString error;
+    const bool saved = !ancienneImmatriculation.isEmpty()
+        ? Vehicule::modifier(ancienneImmatriculation, v, &error)
+        : Vehicule::ajouter(v, &error);
+    if (!saved) {
+        QMessageBox::warning(this, "Enregistrement impossible", error);
+        return;
+    }
+    loadVehicles();
     refreshTable();
     resetForm();
 }
@@ -411,18 +418,117 @@ void MainWindow::saveVehicle()
 void MainWindow::showMaintenanceAlerts()
 {
     QStringList alerts;
+    QStringList incompleteMileageHistory;
     for (const QJsonValue &value : vehicles) {
         const QJsonObject v = value.toObject();
+        const int serviceKm = v.value("maintenanceMileage").toInt(-1);
         if (isMaintenanceDue(v)) {
             QString reason;
             const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
-            if (date.isValid() && date.daysTo(QDate::currentDate()) >= 365) reason = "date de maintenance dépassée";
-            const int kmSince = v.value("mileage").toInt() - v.value("maintenanceMileage").toInt();
-            if (kmSince >= 10000) reason += (reason.isEmpty() ? "" : " et ") + QString("seuil kilométrique atteint (%1 km)").arg(kmSince);
+            if (date.isValid() && date.daysTo(QDate::currentDate()) >= 365)
+                reason = "date de maintenance dépassée (12 mois ou plus)";
+            const int kmSince = v.value("mileage").toInt() - serviceKm;
+            if (serviceKm >= 0 && kmSince >= 10000)
+                reason += (reason.isEmpty() ? "" : " et ")
+                    + QString("seuil kilométrique atteint (%1 km depuis la maintenance)").arg(kmSince);
+            if (reason.isEmpty()) reason = "échéance de maintenance atteinte";
             alerts << QString("• %1 — %2 : %3").arg(v.value("registration").toString(), v.value("model").toString(), reason);
+        } else if (serviceKm < 0 && v.value("mileage").toInt() >= 10000) {
+            incompleteMileageHistory << QString("• %1 : kilométrage lors de la dernière maintenance inconnu; renseignez-le pour vérifier le seuil des 10 000 km.")
+                .arg(v.value("registration").toString());
         }
     }
-    QMessageBox::information(this, "Alertes de maintenance", alerts.isEmpty() ? "Aucun véhicule ne nécessite actuellement une maintenance." : alerts.join('\n'));
+    QStringList messages = alerts;
+    if (!incompleteMileageHistory.isEmpty()) {
+        if (!messages.isEmpty()) messages << QString();
+        messages << "Vérification kilométrique incomplète :";
+        messages.append(incompleteMileageHistory);
+    }
+    if (messages.isEmpty())
+        messages << "Aucun véhicule ne nécessite actuellement une maintenance.";
+    QMessageBox::information(this, "Alertes de maintenance", messages.join('\n'));
+}
+
+void MainWindow::showVehicleCalendar()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Calendrier des véhicules");
+    dialog.resize(680, 650);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *hint = new QLabel("Les dates marquées contiennent un événement. Sélectionnez un jour pour voir l’historique.", &dialog);
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+
+    auto *calendar = new QCalendarWidget(&dialog);
+    calendar->setGridVisible(true);
+    calendar->setFirstDayOfWeek(Qt::Monday);
+    calendar->setSelectedDate(QDate::currentDate());
+    layout->addWidget(calendar);
+
+    auto *eventsTitle = new QLabel("Événements du jour", &dialog);
+    eventsTitle->setStyleSheet("font-weight: 700; font-size: 15px;");
+    layout->addWidget(eventsTitle);
+    auto *eventsList = new QListWidget(&dialog);
+    eventsList->setMinimumHeight(170);
+    layout->addWidget(eventsList, 1);
+
+    auto *close = new QPushButton("Fermer", &dialog);
+    connect(close, &QPushButton::clicked, &dialog, &QDialog::accept);
+    layout->addWidget(close, 0, Qt::AlignRight);
+
+    QSet<QDate> markedDates;
+    auto refreshDay = [this, calendar, eventsList, eventsTitle]() {
+        const QDate selected = calendar->selectedDate();
+        eventsTitle->setText("Événements du "
+            + QLocale(QLocale::French).toString(selected, QStringLiteral("dddd d MMMM yyyy")));
+        eventsList->clear();
+        QString error;
+        const QList<EvenementVehicule> events = Vehicule::evenementsEntre(selected, selected, &error);
+        if (!error.isEmpty()) {
+            eventsList->addItem("Impossible de lire l’historique : " + error);
+            return;
+        }
+        if (events.isEmpty()) {
+            eventsList->addItem("Aucun événement enregistré pour cette date.");
+            return;
+        }
+        for (const EvenementVehicule &event : events) {
+            const QString time = event.date.isValid() ? event.date.toString(QStringLiteral("HH:mm")) : QStringLiteral("--:--");
+            eventsList->addItem(QStringLiteral("%1  •  %2  •  %3 — %4")
+                .arg(time, event.type, event.immatriculation, event.details));
+        }
+    };
+    auto refreshMonth = [this, calendar, eventsList, &markedDates, refreshDay]() {
+        for (const QDate &date : markedDates)
+            calendar->setDateTextFormat(date, QTextCharFormat());
+        markedDates.clear();
+
+        const QDate first(calendar->yearShown(), calendar->monthShown(), 1);
+        const QDate last = first.addMonths(1).addDays(-1);
+        QString error;
+        const QList<EvenementVehicule> events = Vehicule::evenementsEntre(first, last, &error);
+        if (!error.isEmpty()) {
+            eventsList->clear();
+            eventsList->addItem("Impossible de charger le calendrier : " + error);
+            return;
+        }
+        QTextCharFormat format;
+        format.setBackground(QColor("#fde8e8"));
+        format.setForeground(QColor("#b9151d"));
+        format.setFontWeight(QFont::Bold);
+        for (const EvenementVehicule &event : events) {
+            const QDate date = event.date.date();
+            if (!date.isValid() || markedDates.contains(date)) continue;
+            markedDates.insert(date);
+            calendar->setDateTextFormat(date, format);
+        }
+        refreshDay();
+    };
+    connect(calendar, &QCalendarWidget::clicked, &dialog, [refreshDay](const QDate &) { refreshDay(); });
+    connect(calendar, &QCalendarWidget::currentPageChanged, &dialog,
+            [refreshMonth](int, int) { refreshMonth(); });
+    refreshMonth();
+    dialog.exec();
 }
 
 void MainWindow::showStatistics()
@@ -463,6 +569,13 @@ void MainWindow::recommendVehicle()
     }
     std::sort(candidates.begin(), candidates.end(), [this](const QJsonObject &a, const QJsonObject &b) {
         if (isMaintenanceDue(a) != isMaintenanceDue(b)) return !isMaintenanceDue(a);
+        const int aServiceKm = a.value("maintenanceMileage").toInt(-1);
+        const int bServiceKm = b.value("maintenanceMileage").toInt(-1);
+        if (aServiceKm >= 0 && bServiceKm >= 0) {
+            const int aKmSince = a.value("mileage").toInt() - aServiceKm;
+            const int bKmSince = b.value("mileage").toInt() - bServiceKm;
+            if (aKmSince != bKmSince) return aKmSince < bKmSince;
+        }
         return a.value("mileage").toInt() < b.value("mileage").toInt();
     });
     if (candidates.isEmpty()) {
@@ -485,12 +598,12 @@ void MainWindow::exportCsv()
         QMessageBox::warning(this, "Export impossible", "Le fichier ne peut pas être créé.");
         return;
     }
-    QString csv = "ID;Immatriculation;Type;Modèle;État;ID zone;Kilométrage;Dernière maintenance;Notes\r\n";
+    QString csv = "Immatriculation;Type;État;Modèle;Kilométrage;Dernière maintenance\r\n";
     for (const QJsonValue &value : vehicles) {
         const QJsonObject v = value.toObject();
-        QStringList row = {QString::number(v.value("id").toInt()), v.value("registration").toString(), v.value("type").toString(),
-            v.value("model").toString(), v.value("status").toString(), v.value("zone").toString(), QString::number(v.value("mileage").toInt()),
-            maintenanceDateString(v), v.value("notes").toString()};
+        QStringList row = {v.value("registration").toString(), v.value("type").toString(),
+            v.value("status").toString(), v.value("model").toString(), QString::number(v.value("mileage").toInt()),
+            maintenanceDateString(v)};
         for (QString &cell : row) cell = csvCell(cell);
         csv += row.join(';') + "\r\n";
     }
@@ -503,13 +616,13 @@ void MainWindow::exportPdf()
 {
     const QString path = QFileDialog::getSaveFileName(this, "Exporter les véhicules en PDF", "vehicules.pdf", "Document PDF (*.pdf)");
     if (path.isEmpty()) return;
-    QString html = "<html><meta charset='utf-8'><style>body{font-family:Arial;color:#253247}h1{color:#b9151d}table{border-collapse:collapse;width:100%}th{background:#f1f4f8}td,th{border:1px solid #dfe4eb;padding:7px;text-align:left}</style><h1>Fire Station — Parc des véhicules</h1><table><tr><th>ID</th><th>Immatriculation</th><th>Type</th><th>Modèle</th><th>État</th><th>ID zone</th><th>Km</th><th>Maintenance</th></tr>";
+    QString html = "<html><meta charset='utf-8'><style>body{font-family:Arial;color:#253247}h1{color:#b9151d}table{border-collapse:collapse;width:100%}th{background:#f1f4f8}td,th{border:1px solid #dfe4eb;padding:7px;text-align:left}</style><h1>Fire Station — Parc des véhicules</h1><table><tr><th>Immatriculation</th><th>Type</th><th>État</th><th>Modèle</th><th>Km</th><th>Maintenance</th></tr>";
     for (const QJsonValue &value : vehicles) {
         const QJsonObject v = value.toObject();
-        html += "<tr><td>" + QString::number(v.value("id").toInt()) + "</td><td>" + v.value("registration").toString().toHtmlEscaped() + "</td><td>"
-            + v.value("type").toString().toHtmlEscaped() + "</td><td>" + v.value("model").toString().toHtmlEscaped() + "</td><td>"
-            + v.value("status").toString().toHtmlEscaped() + "</td><td>" + v.value("zone").toString().toHtmlEscaped() + "</td><td>"
-            + QString::number(v.value("mileage").toInt()) + "</td><td>" + maintenanceDateString(v) + "</td></tr>";
+        html += "<tr><td>" + v.value("registration").toString().toHtmlEscaped() + "</td><td>"
+            + v.value("type").toString().toHtmlEscaped() + "</td><td>" + v.value("status").toString().toHtmlEscaped() + "</td><td>"
+            + v.value("model").toString().toHtmlEscaped() + "</td><td>" + QString::number(v.value("mileage").toInt())
+            + "</td><td>" + maintenanceDateString(v) + "</td></tr>";
     }
     html += "</table></html>";
     QPrinter printer(QPrinter::HighResolution);
