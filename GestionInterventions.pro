@@ -11,12 +11,16 @@ SOURCES += \
     main.cpp \
     gestioninterventions.cpp \
     connection.cpp \
-    intervention.cpp
+    intervention.cpp \
+    affectation.cpp \
+    graphiques.cpp
 
 HEADERS += \
     gestioninterventions.h \
     connection.h \
-    intervention.h
+    intervention.h \
+    affectation.h \
+    graphiques.h
 
 FORMS += gestioninterventions.ui
 

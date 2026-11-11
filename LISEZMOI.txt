@@ -13,8 +13,40 @@ COMPILER
   (compilateur 64 bits obligatoire).
 - Build > Run qmake, puis Ctrl+R.
 
+UTILISATION (une seule page, aucun formulaire à côté)
+- Ajouter   : une ligne vide apparaît EN HAUT du tableau, on saisit directement dans les cellules.
+- Modifier  : la ligne sélectionnée devient éditable (ou double-clic sur la ligne, ou F2).
+- Enregistrer / Annuler : boutons du bandeau juste au-dessus du tableau (Entrée / Échap au clavier).
+- Supprimer : confirmation dans le bandeau. Consulter : fiche de lecture dans le bandeau.
+- Modifier / Consulter / Supprimer sont grisés tant qu'aucune ligne n'est sélectionnée ;
+  pendant une saisie, tout le reste est verrouillé (une seule ligne à la fois).
+- Raccourcis : Ctrl+N ajouter, F2 modifier, Suppr supprimer, Ctrl+P PDF, Ctrl+T statistiques, Ctrl+F recherche.
+- Tri : boutons ID et Date ; 1er clic = croissant (Date : du plus récent au plus ancien), 2e clic = ordre inverse (flèches ▲ ▼).
+- Parcours recommandé : ordre conseillé de traitement des interventions « En cours » / « En attente » :
+  gravité décroissante, puis regroupement par zone, puis la plus ancienne ; trajet = TEMPS_INTERVENTION de la zone
+  (3 min dans la même zone), durée sur place selon la gravité ; heures d'arrivée et de fin prévues.
+- Statistiques et parcours remplacent le tableau, bouton « Retour à la liste ».
+- Affectation automatique (intervention sélectionnée) : propose véhicules + équipe + équipements, puis « Valider »
+  enregistre dans PARTICIPER_UTILISER et NECESSITER (l'ancienne affectation est remplacée). Rien n'est écrit avant la validation.
+  Ressources LIBRES seulement (pas utilisées par une autre intervention non terminée) ; véhicules en panne / maintenance,
+  équipements périmés, vides ou hors service exclus. Besoins selon la gravité : 1 / 1 / 2 / 3 véhicules,
+  3 / 4 / 6 / 8 employés (chef d'équipe = plus haut grade, un par véhicule). Véhicule, spécialité et équipements choisis par
+  mots-clés (TYPE, MODELE, SPECIALITE, CATEGORIE) selon le type d'intervention : règles dans regleDuType() (affectation.cpp).
+  La fiche « Consulter » indique l'affectation. Nécessite le script complet des tables (EMPLOYES, VEHICULES, EQUIPEMENTS...).
+
+CONTRÔLE DE SAISIE (intervention.cpp, vérifié en direct dans la ligne)
+- Type : liste fixe. Gravité / statut : liste fixe, contrôlés aussi dans la classe.
+- Adresse : 8 à 100 caractères, lettres/chiffres et , . ' - / seulement (le reste est refusé dès la frappe),
+  [numéro] + type de voie + nom (3 lettres minimum), ville optionnelle. « Rue 8 Mars 1934 » et
+  « Avenue du 14 Janvier » sont acceptées. Espaces en double supprimés à l'enregistrement.
+- Date : pas dans le futur, pas avant le 01/01/2026 ; date passée => statut « Terminée » (verrouillé).
+- Doublon refusé (même type, adresse, date et heure). Recherche limitée à 50 caractères, % et _ pris littéralement.
+- Erreurs Oracle courantes traduites en français.
+
 FICHIERS
 - connection.h/.cpp        : connexion Oracle (Singleton)
-- intervention.h/.cpp      : classe Intervention + CRUDs (ajouter, modifier, supprimer, afficher)
-- gestioninterventions.*   : fenêtre (interface .ui) branchée sur la classe
+- affectation.h/.cpp       : affectation automatique des ressources
+- intervention.h/.cpp      : classe Intervention + contrôles de saisie + CRUDs
+- gestioninterventions.*   : l'interface (.ui + .cpp) : tableau éditable, bandeau, barre d'outils, statistiques
+- graphiques.h/.cpp        : graphiques (camembert + histogrammes) dessinés avec QPainter, utilisés à l'écran et dans le PDF
 - sql/interventions.sql    : tables ZONE_COUVERTURE et INTERVENTIONS (+ séquence et trigger)
