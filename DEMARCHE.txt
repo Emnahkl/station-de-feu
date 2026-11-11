@@ -1,0 +1,56 @@
+DEMARCHE - MODULE EMPLOYE (Qt + Oracle)
+=======================================
+
+A. ORACLE - BASE COMMUNE (SQL Developer)
+  Un seul script pour toute l'equipe : firestation_bd.sql (9 tables + 5 sequences + EMPLOYE complet).
+  1. Connexion XE_SYSTEM : copier la PARTIE 1 (CREATE USER / GRANT) et executer avec F5.
+  2. Connexion projet_db (utilisateur PROJET / projet123 ; SELECT USER FROM DUAL -> PROJET).
+  3. Ouvrir firestation_bd.sql, selectionner la PARTIE 2 jusqu'a la fin, executer avec F5.
+     (relancable sans danger : ce qui existe deja n'est pas touche)
+  4. Verifier : SELECT table_name FROM user_tables;  -> 9 tables ; SELECT * FROM EMPLOYE; -> 12 lignes.
+  5. Donner firestation_bd.sql a chaque membre : tous l'executent de la meme facon.
+
+B. ODBC (Windows, une seule fois)
+  Data Source Name : projet_bd | TNS Service Name : XE | User ID : projet
+  A creer dans l'ODBC 64 bits si le kit Qt est 64 bits (C:\Windows\System32\odbcad32.exe).
+
+C. QT CREATOR
+  1. Decompresser ce dossier.
+  2. Le dossier "images" est DEJA inclus (18 images) : le projet compile directement.
+     Les 15 images d'origine sont des images de remplacement : pour retrouver votre design, copiez VOS
+     images (memes noms) dans "images" en choisissant "Remplacer". Les 3 nouvelles (exporterpdf, statistiques,
+     trier) restent. "ajoutervolant.png" n'est plus utilisee mais reste dans le .qrc.
+  3. Ouvrir CMakeLists.txt > Configure Project > Ctrl+R.
+  4. Le module Qt Multimedia doit etre installe dans le kit Qt (Qt Maintenance Tool > Qt Multimedia) : Face ID.
+  5. Si "Driver not loaded" : le pilote QODBC manque dans le kit Qt (verifier dans l'installation Qt
+     que le module SQL / plugin ODBC est installe).
+
+D. FICHIERS (architecture Modele-Vue de l'atelier) - AUCUN fichier en plus : tout est dans mainwindow.h / mainwindow.cpp
+  Modele : employe.h / employe.cpp  -> ajouter, afficher, modifier, supprimer (requetes preparees)
+  Connexion : connection.h / connection.cpp  -> DSN projet_bd
+  Vue : mainwindow.ui / mainwindow.h / mainwindow.cpp  (aucune requete SQL derriere un bouton)
+
+E. CE QUI A CHANGE
+  - supprime : code QR (bouton, colonne, fiche, qrgen.h), email, SMS, WhatsApp
+  - conserve : Face ID
+  - chatbot et Smart Planning agrandis, plus d'espace vide
+  - formulaire : nom, prenom, telephone, grade, specialite, statut, photo (controles de saisie)
+  - bouton "Vue SQL" : affiche la table dans un QTableView avec le QSqlQueryModel de afficher()
+
+F. A DIRE AU TUTEUR
+  EMPLOYE du MLD valide = id, nom, prenom, photo, grade, specialite, telephone.
+  Les colonnes statut, emploi_temps, volontaire sont ajoutees pour l'interface : a valider,
+  puis tous les membres executent employe_bd.sql.
+
+H. NOUVEAUTES (ajoutees sans modifier l'existant)
+  Statistiques et Calendrier s'ouvrent DANS la fenetre principale (a la place du tableau, bouton "Retour au tableau").
+  Seule la camera du Face ID s'ouvre dans une petite fenetre a part.
+  - Exporter PDF (remplace le bouton "Ajouter un volontaire") : exporte la liste affichee (filtres + tri).
+  - Statistiques (page integree) : pourcentages en barres et en graphiques circulaires (statut, specialite, grade, garde, type).
+  - Trier : menu (numero, nom A-Z / Z-A, grade, specialite, statut).
+  - Calendrier (page integree, bouton dans la zone chatbot) : selectionner un employe puis ouvrir son calendrier de travail ;
+    les jours sont enregistres dans Oracle (table PLANNING_JOUR, creee automatiquement + dans firestation_bd.sql).
+  - Face ID : ouvre la camera, scan du visage de 3 s, puis pointage Oracle (1er passage = entree, 2e = sortie).
+    Detection de PRESENCE d'un visage (pas d'identification biometrique de la personne).
+
+G. GITHUB : jamais d'upload manuel ; git add / commit / push en ligne de commande.
