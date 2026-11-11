@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-fadc47aec9673fee282f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "integration_empl_interv",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "integration_empl_interv::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-integration_empl_interv-Debug-102a50828876ea7be1f1.json",
+					"name" : "integration_empl_interv",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "integration_empl_interv_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-integration_empl_interv_autogen-Debug-929a0ab0a17d2f103e33.json",
+					"name" : "integration_empl_interv_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "integration_empl_interv_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-integration_empl_interv_autogen_timestamp_deps-Debug-68e7ddbafd5f9f867ebf.json",
+					"name" : "integration_empl_interv_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/integration_empl_interv/integration_empl_interv/build/Desktop_Qt_6_7_3_MinGW_64_bit_Debug",
+		"source" : "C:/integration_empl_interv/integration_empl_interv"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

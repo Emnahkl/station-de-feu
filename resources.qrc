@@ -1,0 +1,51 @@
+<RCC>
+    <qresource prefix="/">
+        <!-- ===== Module Employes : dossier images/ (vos images, memes noms) ===== -->
+        <file>images/1etoile.png</file>
+        <file>images/2etoile.png</file>
+        <file>images/3etoile.png</file>
+        <file>images/ajouter.png</file>
+        <file>images/ajoutervolant.png</file>
+        <file>images/alerte.png</file>
+        <file>images/chatboot.png</file>
+        <file>images/exporterpdf.png</file>
+        <file>images/faceid.png</file>
+        <file>images/fire.png</file>
+        <file>images/logistc.png</file>
+        <file>images/logo.png</file>
+        <file>images/medic.png</file>
+        <file>images/parametre.png</file>
+        <file>images/sidebar.png</file>
+        <file>images/statistiques.png</file>
+        <file>images/supprimer.png</file>
+        <file>images/trier.png</file>
+        <!-- ===== Module Interventions : memes chemins de ressource, fichiers dans images_interventions/ et icons/ ===== -->
+        <file alias="images/sidebar_bg.png">images_interventions/sidebar_bg.png</file>
+        <file alias="images/fire_bg.jpeg">images_interventions/fire_bg.jpeg</file>
+        <file>icons/add.png</file>
+        <file>icons/avatar.png</file>
+        <file>icons/bell.png</file>
+        <file>icons/chevron_down.png</file>
+        <file>icons/calendar.png</file>
+        <file>icons/delete.png</file>
+        <file>icons/edit.png</file>
+        <file>icons/employes.png</file>
+        <file>icons/equipements.png</file>
+        <file>icons/gear.png</file>
+        <file>icons/home.png</file>
+        <file>icons/interventions.png</file>
+        <file>icons/menu.png</file>
+        <file>icons/parametres.png</file>
+        <file>icons/pdf.png</file>
+        <file>icons/power.png</file>
+        <file>icons/robot.png</file>
+        <file>icons/route.png</file>
+        <file>icons/search.png</file>
+        <file>icons/sensibilisation.png</file>
+        <file>icons/stats.png</file>
+        <file>icons/team.png</file>
+        <file>icons/vehicules.png</file>
+        <file>icons/view.png</file>
+        <file>icons/zones.png</file>
+    </qresource>
+</RCC>

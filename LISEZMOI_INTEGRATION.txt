@@ -1,0 +1,41 @@
+integration_empl_interv - Module EMPLOYES + module INTERVENTIONS, base unique SAFESTATION
+=========================================================================================
+
+1) ORACLE (SQL Developer)
+   - Connexion XE_SYSTEM : executer la PARTIE 1 de sql/safestation_bd.sql (F5)  -> cree l'utilisateur SAFESTATION / safestation123
+   - Connexion SAFESTATION : executer la PARTIE 2 jusqu'a la fin (F5). Relancable sans danger.
+     Cree 11 tables + donnees de test (12 employes, 7 vehicules, 12 equipements, 4 zones, 5 interventions).
+   - Si vous aviez deja une base projet / emna : ces anciennes bases ne sont plus utilisees.
+
+2) ODBC 64 bits (une fois par PC) : C:\Windows\System32\odbcad32.exe
+   Data Source Name : SAFESTATION | TNS Service Name : XE | User ID : safestation
+   (autre nom / utilisateur : modifier en haut de connection.cpp, ou variables d'environnement
+    SAFESTATION_DSN, SAFESTATION_USER, SAFESTATION_PASSWORD)
+
+3) IMAGES
+   - Vos images du module Employes : copier dans le dossier images/ (memes noms, "Remplacer").
+     Le dossier contient des images de remplacement simples pour que le projet compile tout de suite.
+     images/logo.png est aussi le logo affiche dans le module Interventions (et dans son PDF).
+   - Images du module Interventions : dans icons/ et images_interventions/ (deja incluses).
+
+4) QT CREATOR : ouvrir CMakeLists.txt > Configure Project > Ctrl+R (Qt Multimedia + pilote QODBC requis).
+
+COMMENT LES DEUX MODULES SONT RELIES
+- Une seule fenetre (appshell.*). Menu lateral : « Interventions » (module Employes) ouvre la page
+  Interventions ; « Employés » (module Interventions) revient a la page Employes.
+- Une seule connexion Oracle (connection.*) pour les deux modules.
+- L'affectation automatique d'une intervention choisit maintenant l'equipe dans la table EMPLOYE
+  (grade 1-3 etoiles, specialite Fire / Medic / Logistics) et l'enregistre dans PARTICIPER_UTILISER.
+- Supprimer un employe le retire aussi de PARTICIPER_UTILISER (equipes d'interventions).
+
+MODIFICATIONS FAITES DANS LE CODE EXISTANT (fonctionnalites inchangees)
+- mainwindow.h/.cpp : signal ouvrirInterventions + marquerMenu() ; le bouton « Interventions » ouvre la page.
+- gestioninterventions.h/.cpp : signal ouvrirEmployes + marquerMenu() ; le bouton « Employés » ouvre la page.
+- affectation.cpp : lit EMPLOYE au lieu de EMPLOYES ; reconnait les grades en etoiles et les specialites Fire/Medic/Logistics.
+- employe.cpp : la suppression nettoie PARTICIPER_UTILISER (avant : PARTICIPER).
+- main.cpp : une seule connexion ; le message « Connexion reussie » du module Interventions n'est plus affiche.
+
+A SAVOIR / A FAIRE VALIDER PAR LE TUTEUR
+- Colonnes EMPLOYE : statut, emploi_temps, volontaire (module Employes). Colonnes INTERVENTIONS : gravite, statut, heure (module Interventions).
+- L'affectation automatique ne tient pas compte du statut de l'employe (En pause / En formation) : comportement d'origine conserve.
+- Supprimer une intervention deja affectee reste refuse tant que ses liens existent (comportement d'origine).
