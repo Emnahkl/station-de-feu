@@ -1,0 +1,8 @@
+build/
+*.pro.user
+*.pro.user.*
+.qtcreator/
+*.log
+*_log.txt
+diagnostic_oracle.txt
+XEInstall_auto.rsp
