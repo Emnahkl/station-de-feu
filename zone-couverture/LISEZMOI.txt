@@ -1,0 +1,7 @@
+FIRE STATION - interface Qt / C++
+Modules requis : Widgets + Network seulement (aucun WebEngine, marche avec MinGW et MSVC).
+Ouvrir fire.pro (ou CMakeLists.txt) dans Qt Creator, Configurer, Executer.
+Internet requis pour les tuiles de la carte reelle (OpenStreetMap) et la meteo.
+Fichiers : main.cpp | mainwindow.h/.cpp | zone.h/.cpp | equipe.h/.cpp | alerte.h/.cpp
+
+Connexion Oracle ODBC / Singleton : voir database/README_ORACLE.md. Le mot de passe est lu depuis FIRESTATION_DB_PASSWORD et n'est pas stocké dans le code.
