@@ -1,0 +1,655 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ZonesPage</class>
+ <widget class="QWidget" name="ZonesPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#ZonesPage { background: #eef0f4; }
+QWidget { font-size: 13px; color: #2B2B2B; }
+QGroupBox { background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 8px; margin-top: 18px; padding: 10px; font-weight: bold; }
+QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; color: #C62828; }
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { background: #FFFFFF; border: 1px solid #BDBDBD; border-radius: 5px; padding: 5px; min-height: 22px; }
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #FF6F00; }
+QPushButton { background: #FF6F00; color: #FFFFFF; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; }
+QPushButton:hover { background: #E65100; }
+#pushButton_ajouter { background: #2E7D32; }
+#pushButton_ajouter:hover { background: #1B5E20; }
+#pushButton_supprimer { background: #C62828; }
+#pushButton_supprimer:hover { background: #8E0000; }
+#pushButton_vider { background: #757575; }
+QTableView, QTableWidget { background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 6px; gridline-color: #EEEEEE; selection-background-color: #FFE0B2; selection-color: #2B2B2B; alternate-background-color: #FFF3E0; }
+QHeaderView::section { background: #C62828; color: #FFFFFF; padding: 6px; border: none; font-weight: bold; }
+QTabWidget::pane { border: none; }
+QTabBar::tab { background: #E0E0E0; padding: 8px 18px; min-width: 150px; margin-right: 4px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background: #C62828; color: #FFFFFF; font-weight: bold; }
+#label_alerteResume { font-weight: bold; padding: 8px 10px; border-radius: 6px; }
+#label_zoneSelection { color: #374151; }</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_root">
+   <property name="leftMargin">
+    <number>16</number>
+   </property>
+   <property name="topMargin">
+    <number>12</number>
+   </property>
+   <property name="rightMargin">
+    <number>16</number>
+   </property>
+   <property name="bottomMargin">
+    <number>12</number>
+   </property>
+   <item>
+    <widget class="QTabWidget" name="tabWidget_zones">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab_gestion">
+      <attribute name="title">
+       <string>📋 Gestion</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_gestion">
+       <item>
+        <widget class="QGroupBox" name="groupBox_formulaire">
+         <property name="minimumSize">
+          <size>
+           <width>340</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>380</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="title">
+          <string>Fiche zone</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_formulaire">
+          <item>
+           <layout class="QFormLayout" name="formLayout_zone">
+            <property name="labelAlignment">
+             <set>Qt::AlignRight|Qt::AlignVCenter</set>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_id">
+              <property name="text">
+               <string>ID :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="lineEdit_id">
+              <property name="placeholderText">
+               <string>Identifiant (entier)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_nom">
+              <property name="text">
+               <string>Nom :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="lineEdit_nom">
+              <property name="maxLength">
+               <number>60</number>
+              </property>
+              <property name="placeholderText">
+               <string>Ex. : La Marsa</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_region">
+              <property name="text">
+               <string>Région / quartier :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="lineEdit_region">
+              <property name="maxLength">
+               <number>60</number>
+              </property>
+              <property name="placeholderText">
+               <string>Ex. : Tunis Nord</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_superficie">
+              <property name="text">
+               <string>Superficie :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_superficie">
+              <property name="decimals">
+               <number>1</number>
+              </property>
+              <property name="minimum">
+               <double>0</double>
+              </property>
+              <property name="maximum">
+               <double>5000</double>
+              </property>
+              <property name="value">
+               <double>1</double>
+              </property>
+              <property name="suffix">
+               <string> km²</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_population">
+              <property name="text">
+               <string>Population :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QSpinBox" name="spinBox_population">
+              <property name="minimum">
+               <number>0</number>
+              </property>
+              <property name="maximum">
+               <number>5000000</number>
+              </property>
+              <property name="value">
+               <number>1000</number>
+              </property>
+              <property name="suffix">
+               <string> hab.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="label_risque">
+              <property name="text">
+               <string>Niveau de risque :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <widget class="QComboBox" name="comboBox_risque">
+              <item>
+               <property name="text">
+                <string>Faible</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Moyen</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Élevé</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="6" column="0">
+             <widget class="QLabel" name="label_temps">
+              <property name="text">
+               <string>Temps d'intervention :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="1">
+             <widget class="QSpinBox" name="spinBox_temps">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>180</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+              <property name="suffix">
+               <string> min</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="0">
+             <widget class="QLabel" name="label_latitude">
+              <property name="text">
+               <string>Latitude :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_latitude">
+              <property name="decimals">
+               <number>4</number>
+              </property>
+              <property name="minimum">
+               <double>36.5</double>
+              </property>
+              <property name="maximum">
+               <double>37.2</double>
+              </property>
+              <property name="singleStep">
+               <double>0.005</double>
+              </property>
+              <property name="value">
+               <double>36.8</double>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="0">
+             <widget class="QLabel" name="label_longitude">
+              <property name="text">
+               <string>Longitude :</string>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBox_longitude">
+              <property name="decimals">
+               <number>4</number>
+              </property>
+              <property name="minimum">
+               <double>9.8</double>
+              </property>
+              <property name="maximum">
+               <double>10.6</double>
+              </property>
+              <property name="singleStep">
+               <double>0.005</double>
+              </property>
+              <property name="value">
+               <double>10.18</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout_boutons">
+            <item row="0" column="0">
+             <widget class="QPushButton" name="pushButton_ajouter">
+              <property name="text">
+               <string>➕ Ajouter</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QPushButton" name="pushButton_modifier">
+              <property name="text">
+               <string>✏️ Modifier</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QPushButton" name="pushButton_supprimer">
+              <property name="text">
+               <string>🗑️ Supprimer</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QPushButton" name="pushButton_vider">
+              <property name="text">
+               <string>↺ Vider</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_formulaire">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_liste">
+         <property name="title">
+          <string>Liste des zones de couverture</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_liste">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_outils">
+            <item>
+             <widget class="QLineEdit" name="lineEdit_recherche">
+              <property name="placeholderText">
+               <string>🔍 Rechercher…</string>
+              </property>
+              <property name="clearButtonEnabled">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBox_critere">
+              <item>
+               <property name="text">
+                <string>Nom</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Région</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_tri">
+              <property name="text">
+               <string>Trier :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBox_tri">
+              <item>
+               <property name="text">
+                <string>Risque (élevé d'abord)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Risque (faible d'abord)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Temps d'intervention (décroissant)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Temps d'intervention (croissant)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Nom</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_exportPdf">
+              <property name="text">
+               <string>📄 PDF</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_exportExcel">
+              <property name="text">
+               <string>📊 Excel</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QTableView" name="tableView_zones">
+            <property name="editTriggers">
+             <set>QAbstractItemView::NoEditTriggers</set>
+            </property>
+            <property name="alternatingRowColors">
+             <bool>true</bool>
+            </property>
+            <property name="selectionMode">
+             <enum>QAbstractItemView::SingleSelection</enum>
+            </property>
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectRows</enum>
+            </property>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_compteur">
+            <property name="text">
+             <string>0 zone(s)</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_carte">
+      <attribute name="title">
+       <string>🗺️ Carte &amp;&amp; alertes</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_carte">
+       <item>
+        <widget class="QGroupBox" name="groupBox_carte">
+         <property name="title">
+          <string>Carte de Tunis — zones à risque selon l'historique des interventions</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_carte"/>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_alertes">
+         <property name="minimumSize">
+          <size>
+           <width>380</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>460</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="title">
+          <string>Alertes de zones sous-couvertes</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_alertes">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_seuil">
+            <item>
+             <widget class="QLabel" name="label_seuil">
+              <property name="text">
+               <string>Seuil d'alerte :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="spinBox_seuil">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>120</number>
+              </property>
+              <property name="value">
+               <number>12</number>
+              </property>
+              <property name="suffix">
+               <string> min</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_seuil">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_alerteResume">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTableWidget" name="tableWidget_alertes">
+            <property name="editTriggers">
+             <set>QAbstractItemView::NoEditTriggers</set>
+            </property>
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectRows</enum>
+            </property>
+            <property name="selectionMode">
+             <enum>QAbstractItemView::SingleSelection</enum>
+            </property>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="horizontalHeaderStretchLastSection">
+             <bool>true</bool>
+            </attribute>
+            <column>
+             <property name="text">
+              <string>Zone</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Temps moyen</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Dépassement</string>
+             </property>
+            </column>
+            <column>
+             <property name="text">
+              <string>Interventions (12 mois)</string>
+             </property>
+            </column>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_zoneSelection">
+            <property name="text">
+             <string>Cliquez sur une zone de la carte pour voir sa fiche.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_stats">
+      <attribute name="title">
+       <string>📈 Statistiques</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_stats" stretch="0,1">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_stats">
+         <item>
+          <widget class="QLabel" name="label_statCritere">
+           <property name="text">
+            <string>Statistiques (12 derniers mois) :</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_statCritere">
+           <item>
+            <property name="text">
+             <string>Interventions par zone</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Interventions par niveau de risque</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_actualiserStats">
+           <property name="text">
+            <string>🔄 Actualiser</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_stats">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_statTotal">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_graphique">
+         <property name="title">
+          <string>Graphique</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_chart"/>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

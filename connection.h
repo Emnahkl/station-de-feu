@@ -4,21 +4,17 @@
 #include <QSqlDatabase>
 #include <QString>
 
-// Connexion unique à la base Oracle (patron Singleton, "Meyers Singleton").
+// One Oracle connection shared by every module. Connection details are read
+// from the process environment so credentials never live in source control.
 class Connection
 {
 public:
-    static Connection& createInstance();   // point d'accès global à l'instance unique
-    bool createConnection();               // ouvre la connexion Oracle via ODBC
+    Connection();
+    bool createConnection();
     void closeConnection();
     QString lastError() const { return m_error; }
 
 private:
-    Connection();                           // constructeur privé
-    ~Connection();
-    Connection(const Connection&) = delete; // pas de copie
-    Connection& operator=(const Connection&) = delete;
-
     QSqlDatabase m_db;
     QString m_error;
 };
