@@ -3,8 +3,10 @@
 
 #include <QDate>
 #include <QDateTime>
+#include <QMap>
 #include <QPair>
 #include <QString>
+#include <QStringList>
 #include <QTime>
 #include <QVector>
 
@@ -38,10 +40,34 @@ public:
     void setStatut(const QString &v) { m_statut = v; }
     void setIdZone(int v)            { m_idZone = v; }
 
+    // --- Valeurs autorisées (une seule source pour l'interface et le contrôle de saisie) ---
+    static QStringList types();
+    static QStringList gravites();
+    static QStringList statuts();
+    static QDate dateMinimale() { return QDate(2026, 1, 1); }   // aucune intervention avant cette date
+
+    // --- Contrôle de saisie (renvoient "" si valide, sinon le message d'erreur) ---
+    static QString erreurType(const QString &type);
+    static QString erreurAdresse(const QString &adresse);
+    static QString erreurDateHeure(const QDate &date, const QTime &heure);
+    static QString erreurGravite(const QString &gravite);
+    static QString erreurStatut(const QString &statut);
+    // Une intervention dont le jour est passé est forcément terminée
+    static bool estPassee(const QDate &date) { return date < QDate::currentDate(); }
+    // Une intervention dont le jour est à venir est classée « En cours »
+    static bool estFuture(const QDate &date) { return date > QDate::currentDate(); }
+    // Met à « Terminée » (en base) toutes les interventions dont la date est dépassée
+    static bool cloturerPassees();
+    QStringList erreurs() const;             // toutes les erreurs de l'objet (vide = valide)
+    int idDoublon() const;                   // n° d'une AUTRE intervention identique (même type, adresse,
+                                             // date et heure) ; 0 s'il n'y en a pas
+
     // --- CRUD ---
     bool ajouter();                          // Create
     bool modifier();                         // Update (selon getId())
     static bool supprimer(int id);           // Delete
+    // « En attente » -> « En cours » (appelé quand une affectation est validée) ; sans effet sinon
+    static bool demarrerSiEnAttente(int id);
     // Read : liste filtrée (gravité / statut / texte de recherche), vide = pas de filtre
     static QVector<Intervention> afficher(const QString &gravite = QString(),
                                           const QString &statut = QString(),
@@ -49,6 +75,10 @@ public:
 
     // Zones disponibles (clé étrangère ID_ZONE) : paires (id, nom)
     static QVector<QPair<int, QString> > zones();
+    // Temps d'intervention (minutes) de chaque zone : paires (id zone -> minutes), utilisé par le parcours
+    static QMap<int, int> tempsZones();
+    // Niveau de risque de chaque zone (NIVEAU_RISQUE : Faible / Moyen / Eleve) : paires (id zone -> libellé)
+    static QMap<int, QString> risquesZones();
 
     // Dernier message d'erreur Oracle (pour l'afficher à l'utilisateur)
     static QString derniereErreur();

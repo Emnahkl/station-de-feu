@@ -24,7 +24,7 @@ bool Equipement::ajouter()
     QSqlQuery q;
     q.prepare("INSERT INTO EQUIPEMENT (NOM, TYPE_EQUIP, QUANTITE, DATE_ACQUISITION, ETAT, "
               "DATE_CONTROLE, AFFECTATION, SEUIL_ALERTE) "
-              "VALUES (:nom, :type, :qte, :dacq, :etat, :dctrl, :aff, :seuil)");
+              "VALUES (:nom, :type, :qte, TO_DATE(:dacq, 'YYYY-MM-DD'), :etat, TO_DATE(:dctrl, 'YYYY-MM-DD'), :aff, :seuil)");
     q.bindValue(":nom",   nom);
     q.bindValue(":type",  type);
     q.bindValue(":qte",   quantite);
@@ -41,7 +41,7 @@ bool Equipement::modifier()
 {
     QSqlQuery q;
     q.prepare("UPDATE EQUIPEMENT SET NOM=:nom, TYPE_EQUIP=:type, QUANTITE=:qte, "
-              "DATE_ACQUISITION=:dacq, ETAT=:etat, DATE_CONTROLE=:dctrl, "
+              "DATE_ACQUISITION=TO_DATE(:dacq, 'YYYY-MM-DD'), ETAT=:etat, DATE_CONTROLE=TO_DATE(:dctrl, 'YYYY-MM-DD'), "
               "AFFECTATION=:aff, SEUIL_ALERTE=:seuil WHERE ID=:id");
     q.bindValue(":nom",   nom);
     q.bindValue(":type",  type);
@@ -111,7 +111,7 @@ QSqlQuery Equipement::stockEnAlerte()
 QSqlQuery Equipement::controlesProches(int jours)
 {
     QSqlQuery q;
-    q.prepare(QString(SELECT_BASE) + " WHERE DATE_CONTROLE <= :limite ORDER BY DATE_CONTROLE ASC");
+    q.prepare(QString(SELECT_BASE) + " WHERE DATE_CONTROLE <= TO_DATE(:limite, 'YYYY-MM-DD') ORDER BY DATE_CONTROLE ASC");
     q.bindValue(":limite", QDate::currentDate().addDays(jours).toString(Qt::ISODate));
     q.exec();
     return q;

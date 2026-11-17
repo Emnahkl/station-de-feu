@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "menupage.h"
 #include "employespage.h"
-#include "interventionspage.h"
+#include "gestioninterventions.h"
 #include "vehiculespage.h"
 #include "equipementspage.h"
 #include "zonespage.h"
@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
 
     m_stack = new QStackedWidget;
     m_menu = new MenuPage(modules);
-    m_interventions = new InterventionsPage;
+    m_interventions = new GestionInterventions;
     m_employes = new EmployesPage;
     m_vehicules = new VehiculesPage;
     m_equipements = new EquipementsPage;
@@ -73,8 +73,10 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent)
 
     // La recherche de la barre du haut filtre les pages qui ont une liste
     connect(m_search, &QLineEdit::textChanged, m_employes, &EmployesPage::setSearch);
-    connect(m_search, &QLineEdit::textChanged, m_interventions, &InterventionsPage::setSearch);
+    connect(m_search, &QLineEdit::textChanged, m_interventions, &GestionInterventions::setSearch);
+    connect(m_search, &QLineEdit::textChanged, m_vehicules, &VehiculesPage::setSearch);
     connect(m_search, &QLineEdit::textChanged, m_zones, &ZonesPage::setSearch);
+    connect(m_search, &QLineEdit::textChanged, m_campagnes, &CampagnesPage::setSearch);
 
     // Après la connexion : le menu principal
     afficherPage(Menu);

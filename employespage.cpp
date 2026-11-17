@@ -1,30 +1,61 @@
-#include "employespage.h"
+ #include "employespage.h"
 #include "ui_employespage.h"
-#include "qrgen.h"
 
+#include <QActionGroup>
+#include <QDate>
 #include <QDesktopServices>
 #include <QEvent>
-#include <QLinearGradient>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
+#include <QLinearGradient>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPageLayout>
+#include <QPageSize>
+#include <QPdfWriter>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QScrollBar>
+#include <QStackedWidget>
 #include <QStatusBar>
+#include <QStyle>
+#include <QTextDocument>
 #include <QTime>
 #include <QTimer>
 #include <QUrl>
-#include <QUrlQuery>
 #include <algorithm>
+#include <utility>
+#include <QCalendarWidget>
+#include <QCamera>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QGridLayout>
+#include <QListWidget>
+#include <QProgressBar>
+#include <QScrollArea>
+#include <QTextCharFormat>
+#include <QVBoxLayout>
+#include <cmath>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QCameraDevice>
+#include <QMediaCaptureSession>
+#include <QMediaDevices>
+#include <QVideoFrame>
+#include <QVideoSink>
+#else
+#include <QCameraInfo>
+#endif
 
 // ---------------------------------------------------------------------------
 //  Fonctions utilitaires
 // ---------------------------------------------------------------------------
 namespace {
-
 
 // Dessine sidebar.png en fond du sidebar (ancre en bas, recadre) + voile rouge en haut
 class SidebarPainter : public QObject
@@ -59,9 +90,12 @@ const QStringList kStatuts = {"En service", "En pause", "En formation"};
 const QStringList kGardes  = {"Garde de jour (08h-20h)", "Garde de nuit (20h-08h)",
                               "Astreinte week-end", "Aucune"};
 
-QString codeFor(int id) { return QString("FS-AGT-%1").arg(id, 3, 10, QChar('0')); }
-
-QPixmap loadPx(const QString &name) { return QPixmap(QString(":/images/employes/%1.png").arg(name)); }
+QPixmap loadPx(const QString &name) {
+    if (name == "exporterpdf") return QPixmap(":/images/pdf.png");
+    if (name == "statistiques") return QPixmap(":/icons/stats.png");
+    if (name == "trier") return QPixmap(":/images/arrow_down.png");
+    return QPixmap(QString(":/images/employes/%1.png").arg(name));
+}
 
 QPixmap tinted(const QPixmap &src, const QColor &c)
 {
@@ -114,22 +148,19 @@ QPixmap makeAvatar(int s)
     return pm;
 }
 
-// Vrai QR Code (version 1, niveau L) contenant le code de l'agent
-QPixmap makeQrPixmap(const QString &text, int scale)
+// Photo recadree en cercle
+QPixmap roundPhoto(const QPixmap &src, int s)
 {
-    const auto m = SimpleQr::encode(text.toStdString());
-    const int n = int(m.size()), quiet = 2;
-    const int size = (n + 2 * quiet) * scale;
-    QPixmap pm(size, size);
-    pm.fill(Qt::white);
-    QPainter p(&pm);
-    p.setPen(Qt::NoPen);
-    p.setBrush(Qt::black);
-    for (int r = 0; r < n; ++r)
-        for (int c = 0; c < n; ++c)
-            if (m[r][c])
-                p.drawRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
-    return pm;
+    QPixmap scaled = src.scaled(s, s, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    QPixmap out(s, s);
+    out.fill(Qt::transparent);
+    QPainter p(&out);
+    p.setRenderHint(QPainter::Antialiasing);
+    QPainterPath clip;
+    clip.addEllipse(0, 0, s, s);
+    p.setClipPath(clip);
+    p.drawPixmap((s - scaled.width()) / 2, (s - scaled.height()) / 2, scaled);
+    return out;
 }
 
 QWidget *centered(QWidget *w)
@@ -158,6 +189,11 @@ EmployesPage::EmployesPage(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::EmployesPage)
 {
     ui->setupUi(this);
+    ui->sidebar->hide();
+    ui->topBar->hide();
+    m_panel = new QStackedWidget;               // pages integrees : statistiques, calendrier
+    m_panel->setVisible(false);
+    ui->leftLayout->addWidget(m_panel, 1);
     setWindowTitle("Fire Station – Gestion des employés");
     setMinimumSize(1280, 720);
     resize(1366, 768);
@@ -172,25 +208,18 @@ EmployesPage::EmployesPage(QWidget *parent)
     setupTable();
     setupChat();
     setupRightPanels();
-    seedData();
 
+    reloadFromDb();          // lit la table EMPLOYE d'Oracle
     refreshTable();
     updatePlanning();
-
-    // Intégration : la sidebar et la barre du haut sont communes à toute l'application
-    setWindowFlags(Qt::Widget);
-    setMinimumSize(0, 0);
-    ui->sidebar->hide();
-    ui->topBar->hide();
-}
-
-// Intégration : la recherche de la barre du haut commune remplit la recherche du module
-void EmployesPage::setSearch(const QString &texte)
-{
-    ui->lineEditSearch->setText(texte);
 }
 
 EmployesPage::~EmployesPage() { delete ui; }
+void EmployesPage::setSearch(const QString &text)
+{
+    if (ui->lineEditSearch->text() != text)
+        ui->lineEditSearch->setText(text);
+}
 
 void EmployesPage::loadAssets()
 {
@@ -225,32 +254,36 @@ QLabel { background:transparent; color:#37474f; }
 #sidebar QPushButton:checked { background:rgba(0,0,0,0.38); border-left:4px solid white; font-weight:bold; }
 
 /* panneaux */
-#filterFrame, #actionFrame, #formPanel, #chatFrame, #planFrame, #commFrame
+#filterFrame, #actionFrame, #actionFrame2, #formPanel, #chatFrame, #planFrame
     { background:white; border:1px solid #d9dde1; border-radius:8px; }
-#labelChatTitle, #labelPlanTitle, #labelCommTitle, #labelFormTitle
+#labelChatTitle, #labelPlanTitle, #labelFormTitle
     { font-weight:bold; font-size:14px; color:#37474f; }
 #labelFormInfo { color:#455a64; font-size:12px; }
+#labelCount { color:#607d8b; font-size:12px; font-weight:bold; padding-right:8px; }
 QLineEdit, QComboBox { border:1px solid #cfd4d9; border-radius:6px; padding:3px 8px; background:white; color:#263238; }
+QLineEdit[invalide="true"] { border:1px solid #c62828; background:#fff5f5; }
 
 /* boutons-images */
-#btnQr, #btnFaceId, #btnAjouterVolontaire, #btnAjouterEmploye, #btnSupprimerEmploye
+#btnFaceId, #btnExporterPdf, #btnAjouterEmploye, #btnSupprimerEmploye, #btnStatistiques, #btnTrier
     { border:none; background:transparent; }
-#btnQr:hover, #btnFaceId:hover, #btnAjouterVolontaire:hover, #btnAjouterEmploye:hover, #btnSupprimerEmploye:hover
+#btnFaceId:hover, #btnExporterPdf:hover, #btnAjouterEmploye:hover, #btnSupprimerEmploye:hover,
+#btnStatistiques:hover, #btnTrier:hover
     { background:rgba(0,0,0,0.07); border-radius:8px; }
 
 /* boutons du formulaire / panneaux */
 #btnSendChat, #btnFormValider, #btnGenererPlanning
     { background:#2f3e4e; color:white; border:none; border-radius:6px; padding:7px 16px; font-weight:bold; }
 #btnSendChat:hover, #btnFormValider:hover, #btnGenererPlanning:hover { background:#3d5166; }
+#btnCalendrier { background:#2f3e4e; color:white; border:none; border-radius:6px; padding:6px 12px; font-weight:bold; }
+#btnCalendrier:hover { background:#3d5166; }
 #btnFormValider:disabled, #btnSendChat:disabled { background:#9aa5b1; }
-#btnFormAnnuler { background:#d9dcdf; color:#37474f; border:none; border-radius:6px; padding:7px 16px; }
-#btnFormAnnuler:hover { background:#c8ccd0; }
-#btnNotifier  { background:#dbe8f5; color:#1d4f7c; border:none; border-radius:5px; padding:6px 4px; font-size:11px; }
-#btnAlerteGrade { background:#fbe0dc; color:#b3261e; border:none; border-radius:5px; padding:6px 4px; font-size:11px; }
-#btnEnvoyerEmail { background:#e53935; color:white; border:none; border-radius:6px; padding:7px 12px; font-weight:bold; }
-#btnEnvoyerSms   { background:#2f6fd0; color:white; border:none; border-radius:6px; padding:7px 12px; font-weight:bold; }
-#btnEnvoyerWhats { background:#2eaf57; color:white; border:none; border-radius:6px; padding:7px 12px; font-weight:bold; }
-#labelDispo, #labelProgress, #labelUnite, #labelP1, #labelP2, #labelP3, #labelEmail, #labelSms { font-size:11px; }
+#btnVueSql { background:#e9ecef; color:#37474f; border:1px solid #cfd4d9; border-radius:6px; padding:4px 10px; font-weight:bold; }
+#btnVueSql:checked { background:#2f3e4e; color:white; }
+#btnFormAnnuler, #btnFormPhoto { background:#d9dcdf; color:#37474f; border:none; border-radius:6px; padding:7px 16px; }
+#btnFormAnnuler:hover, #btnFormPhoto:hover { background:#c8ccd0; }
+#btnNotifier  { background:#dbe8f5; color:#1d4f7c; border:none; border-radius:5px; padding:8px 4px; font-size:11px; }
+#btnAlerteGrade { background:#fbe0dc; color:#b3261e; border:none; border-radius:5px; padding:8px 4px; font-size:11px; }
+#labelDispo, #labelProgress, #labelUnite, #labelP1, #labelP2, #labelP3 { font-size:11px; }
 
 /* tableau */
 QTableWidget { background:white; alternate-background-color:#f6f7f8; border:1px solid #d9dde1; border-radius:8px;
@@ -275,7 +308,6 @@ void EmployesPage::setupSidebar()
     ui->sidebar->installEventFilter(new SidebarPainter(m_sidebar, ui->sidebar));
     ui->labelLogo->setPixmap(m_logo.scaledToWidth(120, Qt::SmoothTransformation));
 
-    // Les 7 premiers boutons ont une pastille symbole ; "Paramètres" utilise parametre.png
     struct Item { QPushButton *b; QString text; QString glyph; };
     const QVector<Item> items = {
         {ui->btnMenuDashboard,     "Tableau de bord",               "▦"},
@@ -306,7 +338,7 @@ void EmployesPage::setupSidebar()
             statusBar()->showMessage(QString("Module « %1 » : hors de cette tâche (gestion des employés uniquement).").arg(t), 4000);
         });
     }
-    ui->btnMenuCarte->setChecked(true);   // comme sur la maquette
+    ui->btnMenuEquipe->setChecked(true);   // le module gere ici = Equipe (employes)
 }
 
 void EmployesPage::setupTopBar()
@@ -338,7 +370,7 @@ void EmployesPage::setupTopBar()
     connect(ui->btnPower, &QPushButton::clicked, this, &QWidget::close);
     connect(ui->btnAlerte, &QPushButton::clicked, this, [this] {
         int n = 0;
-        for (const Employee &e : qAsConst(m_employees)) if (e.statut == "En formation") ++n;
+        for (const Employe &e : std::as_const(m_employees)) if (e.getStatut() == "En formation") ++n;
         statusBar()->showMessage(QString("%1 alerte(s) : agents en formation (fin de formation / aptitude à surveiller).").arg(n), 5000);
     });
     connect(ui->btnTopParam, &QPushButton::clicked, this, [this] {
@@ -375,17 +407,28 @@ void EmployesPage::setupActionButtons()
         b->setCursor(Qt::PointingHandCursor);
         b->setToolTip(tip);
     };
-    setImg(ui->btnQr,                loadPx("qrcode"),        "Scanner QR Code (Check-in)");
     setImg(ui->btnFaceId,            loadPx("faceid"),        "Connexion Face ID");
-    setImg(ui->btnAjouterVolontaire, loadPx("ajoutervolant"), "Ajouter un volontaire");
+    setImg(ui->btnExporterPdf,       loadPx("exporterpdf"),   "Exporter la liste des employés en PDF");
     setImg(ui->btnAjouterEmploye,    loadPx("ajouter"),       "Ajouter un employé");
     setImg(ui->btnSupprimerEmploye,  loadPx("supprimer"),     "Supprimer un employé");
+    setImg(ui->btnStatistiques,      loadPx("statistiques"),  "Statistiques (pourcentages, barres et cercles)");
+    setImg(ui->btnTrier,             loadPx("trier"),         "Trier les employés");
 
-    connect(ui->btnQr,                &QPushButton::clicked, this, [this] { openForm(Mode::Qr); });
-    connect(ui->btnFaceId,            &QPushButton::clicked, this, [this] { openForm(Mode::Face); });
-    connect(ui->btnAjouterVolontaire, &QPushButton::clicked, this, [this] { openForm(Mode::AddVolunteer); });
+    connect(ui->btnFaceId,            &QPushButton::clicked, this, &EmployesPage::onFaceId);
+    connect(ui->btnExporterPdf,       &QPushButton::clicked, this, &EmployesPage::onExporterPdf);
+    connect(ui->btnStatistiques,      &QPushButton::clicked, this, &EmployesPage::onStatistiques);
+    connect(ui->btnTrier,             &QPushButton::clicked, this, &EmployesPage::onTrier);
+    connect(ui->btnCalendrier,        &QPushButton::clicked, this, &EmployesPage::onCalendrier);
     connect(ui->btnAjouterEmploye,    &QPushButton::clicked, this, [this] { openForm(Mode::Add); });
     connect(ui->btnSupprimerEmploye,  &QPushButton::clicked, this, [this] { openForm(Mode::Delete, selectedEmployeeId()); });
+
+    // bascule entre le tableau personnalise et la vue SQL (QTableView + QSqlQueryModel)
+    connect(ui->btnVueSql, &QPushButton::toggled, this, [this](bool on) {
+        m_panel->setVisible(false);
+        ui->tableViewSql->setVisible(on);
+        ui->tableEmployees->setVisible(!on);
+        ui->btnVueSql->setText(on ? "Vue design" : "Vue SQL");
+    });
 }
 
 void EmployesPage::setupForm()
@@ -400,18 +443,29 @@ void EmployesPage::setupForm()
     ui->comboFormStatut->addItems(kStatuts);
     ui->comboFormGarde->addItems(kGardes);
 
+    // controles de saisie
+    ui->lineEditNom->setMaxLength(50);
+    ui->lineEditPrenom->setMaxLength(50);
+    ui->lineEditTel->setMaxLength(15);
+    const QRegularExpression reNom(QString::fromUtf8("[A-Za-zÀ-ÿ' \\-]*"));
+    ui->lineEditNom->setValidator(new QRegularExpressionValidator(reNom, this));
+    ui->lineEditPrenom->setValidator(new QRegularExpressionValidator(reNom, this));
+    ui->lineEditTel->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), this));
+
     connect(ui->btnFormValider, &QPushButton::clicked, this, &EmployesPage::onFormValider);
     connect(ui->btnFormAnnuler, &QPushButton::clicked, this, &EmployesPage::closeForm);
-    connect(ui->lineEditNom,  &QLineEdit::returnPressed, this, &EmployesPage::onFormValider);
-    connect(ui->lineEditCode, &QLineEdit::returnPressed, this, &EmployesPage::onFormValider);
+    connect(ui->btnFormPhoto,   &QPushButton::clicked, this, &EmployesPage::onChoisirPhoto);
+    connect(ui->lineEditNom,    &QLineEdit::returnPressed, this, &EmployesPage::onFormValider);
+    connect(ui->lineEditPrenom, &QLineEdit::returnPressed, this, &EmployesPage::onFormValider);
+    connect(ui->lineEditTel,    &QLineEdit::returnPressed, this, &EmployesPage::onFormValider);
     ui->formPanel->setVisible(false);
 }
 
 void EmployesPage::setupTable()
 {
     QTableWidget *t = ui->tableEmployees;
-    t->setColumnCount(7);
-    t->setHorizontalHeaderLabels({"Avatar", "Nom", "Grade", "Spécialité", "Statut de Présence", "Code QR", "Emploi du temps"});
+    t->setColumnCount(6);
+    t->setHorizontalHeaderLabels({"Avatar", "Nom", "Grade", "Spécialité", "Statut de Présence", "Emploi du temps"});
     t->verticalHeader()->setVisible(false);
     t->horizontalHeader()->setHighlightSections(false);
     t->horizontalHeader()->setFixedHeight(42);
@@ -424,9 +478,9 @@ void EmployesPage::setupTable()
     t->setFocusPolicy(Qt::NoFocus);
     t->verticalHeader()->setDefaultSectionSize(60);
 
-    const int widths[7] = {60, 0, 124, 118, 128, 62, 204};
+    const int widths[6] = {60, 0, 112, 118, 134, 204};
     QHeaderView *h = t->horizontalHeader();
-    for (int c = 0; c < 7; ++c) {
+    for (int c = 0; c < 6; ++c) {
         if (c == 1) { h->setSectionResizeMode(c, QHeaderView::Stretch); continue; }
         h->setSectionResizeMode(c, QHeaderView::Fixed);
         t->setColumnWidth(c, widths[c]);
@@ -454,18 +508,15 @@ void EmployesPage::setupRightPanels()
     connect(ui->btnGenererPlanning, &QPushButton::clicked, this, &EmployesPage::onGenererPlanning);
     connect(ui->btnNotifier, &QPushButton::clicked, this, [this] {
         int n = 0;
-        for (const Employee &e : qAsConst(m_employees)) if (e.specialite == "Medic" && e.statut != "En formation") ++n;
+        for (const Employe &e : std::as_const(m_employees))
+            if (e.getSpecialite() == "Medic" && e.getStatut() != "En formation") ++n;
         statusBar()->showMessage(QString("Notification envoyée au Lt. Médecin : %1 agent(s) Medic disponible(s).").arg(n), 5000);
     });
     connect(ui->btnAlerteGrade, &QPushButton::clicked, this, [this] {
         int n = 0;
-        for (const Employee &e : qAsConst(m_employees)) if (e.statut == "En formation") ++n;
+        for (const Employe &e : std::as_const(m_employees)) if (e.getStatut() == "En formation") ++n;
         statusBar()->showMessage(QString("Alerte S/L envoyée : %1 agent(s) en formation (fin de formation / aptitude).").arg(n), 5000);
     });
-    connect(ui->btnEnvoyerEmail, &QPushButton::clicked, this, &EmployesPage::onEnvoyerEmail);
-    connect(ui->btnEnvoyerSms,   &QPushButton::clicked, this, &EmployesPage::onEnvoyerSms);
-    connect(ui->btnEnvoyerWhats, &QPushButton::clicked, this, &EmployesPage::onEnvoyerWhatsApp);
-    ui->lineEditSms->setPlaceholderText("216XXXXXXXX ; Message");
 
     for (QProgressBar *b : {ui->barPlan1, ui->barPlan2, ui->barPlan3, ui->barDispo, ui->barProgress}) {
         b->setRange(0, 100);
@@ -473,42 +524,20 @@ void EmployesPage::setupRightPanels()
     }
 }
 
-void EmployesPage::seedData()
+// ---------------------------------------------------------------------------
+//  Acces aux donnees (Oracle)
+// ---------------------------------------------------------------------------
+void EmployesPage::reloadFromDb()
 {
-    struct Seed { int grade; const char *spec; const char *statut; const char *garde; };
-    const Seed seeds[12] = {
-        {1, "Fire",      "En service",   "Garde de jour (08h-20h)"},
-        {2, "Medic",     "En pause",     "Garde de jour (08h-20h)"},
-        {2, "Medic",     "En pause",     "Garde de nuit (20h-08h)"},
-        {2, "Logistics", "En formation", "Aucune"},
-        {2, "Medic",     "En pause",     "Garde de nuit (20h-08h)"},
-        {2, "Logistics", "En formation", "Aucune"},
-        {2, "Logistics", "En formation", "Astreinte week-end"},
-        {3, "Fire",      "En service",   "Garde de jour (08h-20h)"},
-        {3, "Logistics", "En pause",     "Aucune"},
-        {3, "Logistics", "En formation", "Aucune"},
-        {3, "Logistics", "En formation", "Aucune"},
-        {3, "Medic",     "En service",   "Garde de nuit (20h-08h)"},
-    };
-    for (const Seed &s : seeds) {
-        Employee e;
-        e.id = m_nextId++;
-        e.nom = QString("Agent %1").arg(e.id);
-        e.grade = s.grade;
-        e.specialite = s.spec;
-        e.statut = s.statut;
-        e.garde = s.garde;
-        m_employees.append(e);
-    }
+    m_employees = Employe::chargerTous();
+    if (!Employe::derniereErreur().isEmpty() && m_employees.isEmpty())
+        statusBar()->showMessage("Lecture Oracle : " + Employe::derniereErreur(), 8000);
 }
 
-// ---------------------------------------------------------------------------
-//  Logique employes
-// ---------------------------------------------------------------------------
-Employee *EmployesPage::findEmployee(int id)
+const Employe *EmployesPage::findEmployee(int id) const
 {
-    for (Employee &e : m_employees)
-        if (e.id == id) return &e;
+    for (const Employe &e : m_employees)
+        if (e.getId() == id) return &e;
     return nullptr;
 }
 
@@ -526,115 +555,160 @@ void EmployesPage::setInfo(const QString &html)
     ui->labelFormInfo->setVisible(!html.isEmpty());
 }
 
-QString EmployesPage::pointage(Employee &e)
+QPixmap EmployesPage::avatarFor(const Employe &e, int size) const
+{
+    if (!e.getPhoto().isEmpty()) {
+        QPixmap px(e.getPhoto());
+        if (!px.isNull()) return roundPhoto(px, size);
+    }
+    return m_avatar.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+}
+
+QString EmployesPage::pointage(const Employe &e)
 {
     const QString heure = QTime::currentTime().toString("HH:mm");
-    if (e.statut == "En service") {
-        e.statut = "En pause";
-        return QString("↩ Check-out : %1 (%2) à %3 → statut « En pause ».").arg(e.nom, codeFor(e.id), heure);
-    }
-    e.statut = "En service";
-    return QString("✔ Check-in : %1 (%2) à %3 → statut « En service ».").arg(e.nom, codeFor(e.id), heure);
+    const bool enService = (e.getStatut() == "En service");
+    const QString nouveau = enService ? "En pause" : "En service";
+    if (!Employe::changerStatut(e.getId(), nouveau))
+        return "⚠ Échec Oracle : " + Employe::derniereErreur();
+    return enService
+        ? QString("↩ Sortie : %1 à %2 → statut « En pause ».").arg(e.nomComplet(), heure)
+        : QString("✔ Entrée : %1 à %2 → statut « En service ».").arg(e.nomComplet(), heure);
+}
+
+// Verifie nom / prenom / telephone. Retourne false et affiche le probleme sinon.
+bool EmployesPage::validerSaisie(QString &nom, QString &prenom, QString &tel)
+{
+    nom = ui->lineEditNom->text().trimmed();
+    prenom = ui->lineEditPrenom->text().trimmed();
+    tel = ui->lineEditTel->text().trimmed();
+
+    auto flag = [](QLineEdit *le, bool bad) {
+        le->setProperty("invalide", bad);
+        le->style()->unpolish(le);
+        le->style()->polish(le);
+    };
+    const bool badNom = nom.size() < 2;
+    const bool badPre = prenom.size() < 2;
+    const bool badTel = tel.size() < 8 || tel.size() > 15;
+    flag(ui->lineEditNom, badNom);
+    flag(ui->lineEditPrenom, badPre);
+    flag(ui->lineEditTel, badTel);
+
+    if (badNom)  { setInfo("⚠ Le nom est obligatoire (2 lettres minimum, sans chiffres)."); return false; }
+    if (badPre)  { setInfo("⚠ Le prénom est obligatoire (2 lettres minimum, sans chiffres)."); return false; }
+    if (badTel)  { setInfo("⚠ Le téléphone doit contenir 8 à 15 chiffres."); return false; }
+    return true;
+}
+
+void EmployesPage::onChoisirPhoto()
+{
+    const QString f = QFileDialog::getOpenFileName(this, "Choisir une photo", QString(),
+                                                   "Images (*.png *.jpg *.jpeg *.bmp)");
+    if (!f.isEmpty()) ui->lineEditPhoto->setText(f);
 }
 
 void EmployesPage::openForm(Mode mode, int id)
 {
+    hidePanel();
     m_mode = mode;
     m_currentId = id;
-    Employee *e = (id >= 0) ? findEmployee(id) : nullptr;
+    const Employe *e = (id >= 0) ? findEmployee(id) : nullptr;
 
-    auto vis = [this](bool nom, bool grade, bool spec, bool statut, bool target, bool garde, bool code) {
-        ui->labelNom->setVisible(nom);              ui->lineEditNom->setVisible(nom);
-        ui->labelFormGrade->setVisible(grade);      ui->comboFormGrade->setVisible(grade);
-        ui->labelFormSpec->setVisible(spec);        ui->comboFormSpec->setVisible(spec);
-        ui->labelFormStatut->setVisible(statut);    ui->comboFormStatut->setVisible(statut);
-        ui->labelFormTarget->setVisible(target);    ui->comboFormTarget->setVisible(target);
-        ui->labelFormGarde->setVisible(garde);      ui->comboFormGarde->setVisible(garde);
-        ui->labelFormCode->setVisible(code);        ui->lineEditCode->setVisible(code);
+    // r1 : nom/prenom/tel   r2 : grade/spec/statut   r3 : photo   r4 : employe cible / garde
+    auto vis = [this](bool r1, bool r2, bool r3, bool target, bool garde) {
+        ui->formRow1->setVisible(r1);
+        ui->formRow2->setVisible(r2);
+        ui->formRow3->setVisible(r3);
+        ui->formRow4->setVisible(target || garde);
+        ui->labelFormTarget->setVisible(target);  ui->comboFormTarget->setVisible(target);
+        ui->labelFormGarde->setVisible(garde);    ui->comboFormGarde->setVisible(garde);
     };
 
     ui->lineEditNom->clear();
-    ui->lineEditCode->clear();
+    ui->lineEditPrenom->clear();
+    ui->lineEditTel->clear();
+    ui->lineEditPhoto->clear();
+    for (QLineEdit *le : {ui->lineEditNom, ui->lineEditPrenom, ui->lineEditTel}) {
+        le->setProperty("invalide", false);
+        le->style()->unpolish(le);
+        le->style()->polish(le);
+    }
     ui->comboFormGrade->setCurrentIndex(0);
     ui->comboFormSpec->setCurrentIndex(0);
     ui->comboFormStatut->setCurrentIndex(0);
-    ui->labelFormQr->setVisible(false);
     ui->btnFormValider->setVisible(true);
     ui->btnFormValider->setEnabled(true);
     ui->btnFormValider->setStyleSheet(QString());
     ui->btnFormAnnuler->setText("Annuler");
     setInfo(QString());
 
+    auto remplirCibles = [this] {
+        ui->comboFormTarget->clear();
+        for (const Employe &x : std::as_const(m_employees))
+            ui->comboFormTarget->addItem(QString("%1 (n° %2)").arg(x.nomComplet()).arg(x.getId()), x.getId());
+    };
+
     switch (mode) {
     case Mode::Add:
         ui->labelFormTitle->setText("Ajouter un employé");
-        vis(true, true, true, true, false, false, false);
+        vis(true, true, true, false, false);
         ui->btnFormValider->setText("Ajouter");
         ui->lineEditNom->setFocus();
         break;
     case Mode::AddVolunteer:
         ui->labelFormTitle->setText("Ajouter un volontaire");
-        vis(true, true, true, true, false, false, false);
+        vis(true, true, true, false, false);
         ui->btnFormValider->setText("Ajouter");
         setInfo("Le volontaire apparaîtra dans le tableau avec la mention « Volontaire ».");
         ui->lineEditNom->setFocus();
         break;
     case Mode::Edit:
         if (!e) return;
-        ui->labelFormTitle->setText(QString("Modifier : %1").arg(e->nom));
-        vis(true, true, true, true, false, false, false);
-        ui->lineEditNom->setText(e->nom);
-        ui->comboFormGrade->setCurrentIndex(qBound(0, e->grade - 1, 2));
-        ui->comboFormSpec->setCurrentIndex(qMax(0, kSpecs.indexOf(e->specialite)));
-        ui->comboFormStatut->setCurrentIndex(qMax(0, kStatuts.indexOf(e->statut)));
+        ui->labelFormTitle->setText(QString("Modifier : %1").arg(e->nomComplet()));
+        vis(true, true, true, false, false);
+        ui->lineEditNom->setText(e->getNom());
+        ui->lineEditPrenom->setText(e->getPrenom());
+        ui->lineEditTel->setText(e->getTelephone());
+        ui->lineEditPhoto->setText(e->getPhoto());
+        ui->comboFormGrade->setCurrentIndex(qBound(0, e->getGrade() - 1, 2));
+        ui->comboFormSpec->setCurrentIndex(qMax(0, kSpecs.indexOf(e->getSpecialite())));
+        ui->comboFormStatut->setCurrentIndex(qMax(0, kStatuts.indexOf(e->getStatut())));
         ui->btnFormValider->setText("Enregistrer");
         break;
     case Mode::View:
         if (!e) return;
-        ui->labelFormTitle->setText(QString("Fiche : %1").arg(e->nom));
-        vis(false, false, false, false, false, false, false);
-        ui->labelFormQr->setPixmap(makeQrPixmap(codeFor(e->id), 3));
-        ui->labelFormQr->setVisible(true);
-        setInfo(QString("<b>%1</b>%2<br>Code QR : %3<br>Grade : %4 étoile(s) · Spécialité : %5<br>Statut : %6<br>Emploi du temps : %7")
-                    .arg(e->nom, e->volontaire ? QString(" (Volontaire)") : QString(), codeFor(e->id))
-                    .arg(e->grade).arg(e->specialite, e->statut, e->garde));
+        ui->labelFormTitle->setText(QString("Fiche : %1").arg(e->nomComplet()));
+        vis(false, false, false, false, false);
+        setInfo(QString("<b>%1</b>%2<br>Téléphone : %3<br>Grade : %4 étoile(s) · Spécialité : %5<br>Statut : %6<br>Emploi du temps : %7")
+                    .arg(e->nomComplet(), e->isVolontaire() ? QString(" (Volontaire)") : QString(), e->getTelephone())
+                    .arg(e->getGrade()).arg(e->getSpecialite(), e->getStatut(), e->getGarde()));
         ui->btnFormValider->setVisible(false);
         ui->btnFormAnnuler->setText("Fermer");
         break;
     case Mode::Assign:
         if (!e) return;
-        ui->labelFormTitle->setText(QString("Assigner un emploi du temps : %1").arg(e->nom));
-        vis(false, false, false, false, false, true, false);
-        ui->comboFormGarde->setCurrentIndex(qMax(0, kGardes.indexOf(e->garde)));
-        if (e->statut == "En formation")
+        ui->labelFormTitle->setText(QString("Assigner un emploi du temps : %1").arg(e->nomComplet()));
+        vis(false, false, false, false, true);
+        ui->comboFormGarde->setCurrentIndex(qMax(0, kGardes.indexOf(e->getGarde())));
+        if (e->getStatut() == "En formation")
             setInfo("⚠ Cet agent est en formation : l'assignation reste possible mais déconseillée.");
         ui->btnFormValider->setText("Assigner");
         break;
     case Mode::Delete:
         ui->labelFormTitle->setText("Supprimer un employé");
-        vis(false, false, false, false, true, false, false);
-        ui->comboFormTarget->clear();
-        for (const Employee &x : qAsConst(m_employees))
-            ui->comboFormTarget->addItem(QString("%1 (%2)").arg(x.nom, codeFor(x.id)), x.id);
+        vis(false, false, false, true, false);
+        remplirCibles();
         if (id >= 0) ui->comboFormTarget->setCurrentIndex(qMax(0, ui->comboFormTarget->findData(id)));
-        setInfo("Choisissez l'employé à retirer de la liste (ou sélectionnez d'abord une ligne). Action définitive.");
+        setInfo("Choisissez l'employé à retirer de la base (ou sélectionnez d'abord une ligne). Action définitive.");
         ui->btnFormValider->setText("Supprimer");
         ui->btnFormValider->setStyleSheet("background:#c62828;color:white;border:none;border-radius:6px;padding:7px 16px;font-weight:bold;");
         break;
-    case Mode::Qr:
-        ui->labelFormTitle->setText("Scanner QR Code (Check-in / Check-out)");
-        vis(false, false, false, false, false, false, true);
-        setInfo("Saisissez ou scannez (lecteur code-barres) le code de l'agent. 1er passage = check-in (En service), 2e passage = check-out (En pause).");
-        ui->btnFormValider->setText("Pointer");
-        ui->lineEditCode->setFocus();
-        break;
     case Mode::Face:
         ui->labelFormTitle->setText("Connexion Face ID");
-        vis(false, false, false, false, true, false, false);
-        ui->comboFormTarget->clear();
-        for (const Employee &x : qAsConst(m_employees))
-            ui->comboFormTarget->addItem(QString("%1 (%2)").arg(x.nom, codeFor(x.id)), x.id);
-        setInfo("Choisissez l'agent puis lancez la vérification du visage.");
+        vis(false, false, false, true, false);
+        remplirCibles();
+        setInfo("Choisissez l'agent puis lancez la vérification du visage (1er passage = entrée, 2e passage = sortie).");
         ui->btnFormValider->setText("Vérifier le visage");
         break;
     default:
@@ -655,72 +729,80 @@ void EmployesPage::onFormValider()
     switch (m_mode) {
     case Mode::Add:
     case Mode::AddVolunteer: {
-        const QString nom = ui->lineEditNom->text().trimmed();
-        if (nom.isEmpty()) { setInfo("⚠ Veuillez saisir le nom de l'employé."); return; }
-        Employee e;
-        e.id = m_nextId++;
-        e.nom = nom;
-        e.grade = ui->comboFormGrade->currentData().toInt();
-        e.specialite = ui->comboFormSpec->currentData().toString();
-        e.statut = ui->comboFormStatut->currentText();
-        e.volontaire = (m_mode == Mode::AddVolunteer);
-        m_employees.append(e);
+        QString nom, prenom, tel;
+        if (!validerSaisie(nom, prenom, tel)) return;
+        Employe e(0, nom, prenom, ui->lineEditPhoto->text().trimmed(),
+                  ui->comboFormGrade->currentData().toInt(),
+                  ui->comboFormSpec->currentData().toString(), tel,
+                  ui->comboFormStatut->currentText(), "Aucune",
+                  m_mode == Mode::AddVolunteer);
+        if (!e.ajouter()) {
+            QMessageBox::critical(this, "Not OK", "Ajout non effectué.\n" + Employe::derniereErreur());
+            return;
+        }
+        reloadFromDb();
         refreshTable();
-        statusBar()->showMessage(QString("%1 ajouté (%2).").arg(nom, codeFor(e.id)), 4000);
+        updatePlanning();
+        statusBar()->showMessage(QString("%1 ajouté.").arg(e.nomComplet()), 4000);
+        QMessageBox::information(this, "OK", "Ajout effectué.");
         closeForm();
         break;
     }
     case Mode::Edit: {
-        Employee *e = findEmployee(m_currentId);
-        const QString nom = ui->lineEditNom->text().trimmed();
-        if (!e) { closeForm(); return; }
-        if (nom.isEmpty()) { setInfo("⚠ Le nom ne peut pas être vide."); return; }
-        e->nom = nom;
-        e->grade = ui->comboFormGrade->currentData().toInt();
-        e->specialite = ui->comboFormSpec->currentData().toString();
-        e->statut = ui->comboFormStatut->currentText();
+        const Employe *old = findEmployee(m_currentId);
+        if (!old) { closeForm(); return; }
+        QString nom, prenom, tel;
+        if (!validerSaisie(nom, prenom, tel)) return;
+        Employe e(m_currentId, nom, prenom, ui->lineEditPhoto->text().trimmed(),
+                  ui->comboFormGrade->currentData().toInt(),
+                  ui->comboFormSpec->currentData().toString(), tel,
+                  ui->comboFormStatut->currentText(), old->getGarde(), old->isVolontaire());
+        if (!e.modifier()) {
+            QMessageBox::critical(this, "Not OK", "Modification non effectuée.\n" + Employe::derniereErreur());
+            return;
+        }
+        reloadFromDb();
         refreshTable();
-        statusBar()->showMessage(QString("%1 modifié.").arg(nom), 4000);
+        updatePlanning();
+        statusBar()->showMessage(QString("%1 modifié.").arg(e.nomComplet()), 4000);
+        QMessageBox::information(this, "OK", "Modification effectuée.");
         closeForm();
         break;
     }
     case Mode::Assign: {
-        Employee *e = findEmployee(m_currentId);
+        const Employe *e = findEmployee(m_currentId);
         if (!e) { closeForm(); return; }
-        e->garde = ui->comboFormGarde->currentText();
+        const QString garde = ui->comboFormGarde->currentText();
+        const QString nom = e->nomComplet();
+        if (!Employe::changerGarde(m_currentId, garde)) {
+            setInfo("⚠ Échec Oracle : " + Employe::derniereErreur().toHtmlEscaped());
+            return;
+        }
+        reloadFromDb();
         refreshTable();
         updatePlanning();
-        statusBar()->showMessage(QString("%1 → %2.").arg(e->nom, e->garde), 4000);
+        statusBar()->showMessage(QString("%1 → %2.").arg(nom, garde), 4000);
         closeForm();
         break;
     }
     case Mode::Delete: {
         const int id = ui->comboFormTarget->currentData().toInt();
-        Employee *e = findEmployee(id);
+        const Employe *e = findEmployee(id);
         if (!e) { setInfo("⚠ Aucun employé à supprimer."); return; }
-        const QString nom = e->nom;
-        m_employees.erase(std::remove_if(m_employees.begin(), m_employees.end(),
-                                         [id](const Employee &x) { return x.id == id; }),
-                          m_employees.end());
+        const QString nom = e->nomComplet();
+        if (QMessageBox::question(this, "Suppression",
+                                  QString("Supprimer définitivement %1 ?").arg(nom)) != QMessageBox::Yes)
+            return;
+        if (!m_dao.supprimer(id)) {
+            QMessageBox::critical(this, "Not OK", "Suppression non effectuée.\n" + Employe::derniereErreur());
+            return;
+        }
+        reloadFromDb();
         refreshTable();
         updatePlanning();
         statusBar()->showMessage(QString("%1 supprimé.").arg(nom), 4000);
+        QMessageBox::information(this, "OK", "Suppression effectuée.");
         closeForm();
-        break;
-    }
-    case Mode::Qr: {
-        const QString code = ui->lineEditCode->text().trimmed().toUpper();
-        Employee *found = nullptr;
-        for (Employee &x : m_employees)
-            if (codeFor(x.id) == code) { found = &x; break; }
-        if (!found) { setInfo(QString("⚠ Code « %1 » inconnu.").arg(code.toHtmlEscaped())); return; }
-        const QString msg = pointage(*found);
-        refreshTable();
-        updatePlanning();
-        setInfo(msg);
-        statusBar()->showMessage(msg, 5000);
-        ui->lineEditCode->clear();
-        ui->lineEditCode->setFocus();
         break;
     }
     case Mode::Face: {
@@ -729,10 +811,11 @@ void EmployesPage::onFormValider()
         ui->btnFormValider->setEnabled(false);
         setInfo("Analyse du visage en cours…");
         QTimer::singleShot(1300, this, [this, id] {
-            Employee *e = findEmployee(id);
+            const Employe *e = findEmployee(id);
             ui->btnFormValider->setEnabled(true);
             if (!e || m_mode != Mode::Face) return;
             const QString msg = pointage(*e);
+            reloadFromDb();
             refreshTable();
             updatePlanning();
             setInfo("Visage reconnu. " + msg);
@@ -755,37 +838,54 @@ void EmployesPage::refreshTable()
     const QString sp = ui->comboSpec->currentData().toString();
     const QString q = ui->lineEditSearch->text().trimmed();
 
-    QVector<Employee> rows;
-    for (const Employee &e : qAsConst(m_employees)) {
-        if (g > 0 && e.grade != g) continue;
-        if (!sp.isEmpty() && e.specialite != sp) continue;
-        if (!q.isEmpty() && !e.nom.contains(q, Qt::CaseInsensitive)
-                         && !e.specialite.contains(q, Qt::CaseInsensitive)
-                         && !codeFor(e.id).contains(q, Qt::CaseInsensitive)) continue;
+    QVector<Employe> rows;
+    for (const Employe &e : std::as_const(m_employees)) {
+        if (g > 0 && e.getGrade() != g) continue;
+        if (!sp.isEmpty() && e.getSpecialite() != sp) continue;
+        if (!q.isEmpty() && !e.getNom().contains(q, Qt::CaseInsensitive)
+                         && !e.getPrenom().contains(q, Qt::CaseInsensitive)
+                         && !e.getSpecialite().contains(q, Qt::CaseInsensitive)
+                         && !e.getTelephone().contains(q, Qt::CaseInsensitive)) continue;
         rows.append(e);
     }
 
+    // tri choisi avec le bouton "Trier"
+    std::stable_sort(rows.begin(), rows.end(), [this](const Employe &a, const Employe &b) {
+        switch (m_sortKey) {
+        case SortKey::NomAZ:      return QString::localeAwareCompare(a.nomComplet(), b.nomComplet()) < 0;
+        case SortKey::NomZA:      return QString::localeAwareCompare(a.nomComplet(), b.nomComplet()) > 0;
+        case SortKey::GradeAsc:   return a.getGrade() < b.getGrade();
+        case SortKey::GradeDesc:  return a.getGrade() > b.getGrade();
+        case SortKey::Specialite: return QString::localeAwareCompare(a.getSpecialite(), b.getSpecialite()) < 0;
+        case SortKey::Statut:     return QString::localeAwareCompare(a.getStatut(), b.getStatut()) < 0;
+        default:                  return a.getId() < b.getId();
+        }
+    });
+    m_rows = rows;
+
+    const int selected = selectedEmployeeId();
     t->setRowCount(0);
     t->setRowCount(rows.size());
 
     for (int r = 0; r < rows.size(); ++r) {
-        const Employee &e = rows[r];
+        const Employe &e = rows[r];
         t->setRowHeight(r, 60);
 
-        // 0 : avatar
+        // 0 : avatar (photo si renseignee)
         auto *av = new QLabel;
-        av->setPixmap(m_avatar.scaled(44, 44, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        av->setPixmap(avatarFor(e, 44));
         t->setCellWidget(r, 0, centered(av));
 
-        // 1 : nom
-        auto *it = new QTableWidgetItem(e.nom + (e.volontaire ? "  (Volontaire)" : ""));
-        it->setData(Qt::UserRole, e.id);
+        // 1 : nom prenom
+        auto *it = new QTableWidgetItem(e.nomComplet() + (e.isVolontaire() ? "  (Volontaire)" : ""));
+        it->setData(Qt::UserRole, e.getId());
+        it->setToolTip(QString("Tél : %1").arg(e.getTelephone()));
         it->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         t->setItem(r, 1, it);
 
         // 2 : grade (image 1etoile / 2etoile / 3etoile)
         auto *gl = new QLabel;
-        gl->setPixmap(m_gradeBtn[qBound(1, e.grade, 3)].scaledToHeight(36, Qt::SmoothTransformation));
+        gl->setPixmap(m_gradeBtn[qBound(1, e.getGrade(), 3)].scaledToHeight(36, Qt::SmoothTransformation));
         t->setCellWidget(r, 2, centered(gl));
 
         // 3 : specialite (icone + texte)
@@ -794,9 +894,9 @@ void EmployesPage::refreshTable()
         spL->setContentsMargins(8, 0, 4, 0);
         spL->setSpacing(6);
         auto *spIcon = new QLabel;
-        const int si = qMax(0, kSpecs.indexOf(e.specialite));
+        const int si = qMax(0, kSpecs.indexOf(e.getSpecialite()));
         spIcon->setPixmap(m_specPx[si].scaled(26, 26, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        auto *spText = new QLabel(e.specialite);
+        auto *spText = new QLabel(e.getSpecialite());
         spText->setStyleSheet("font-weight:bold;color:#263238;");
         spL->addWidget(spIcon);
         spL->addWidget(spText);
@@ -804,23 +904,17 @@ void EmployesPage::refreshTable()
         t->setCellWidget(r, 3, spBox);
 
         // 4 : statut de presence
-        auto *st = new QLabel(e.statut);
+        auto *st = new QLabel(e.getStatut());
         st->setAlignment(Qt::AlignCenter);
-        st->setStyleSheet(statusStyle(e.statut));
+        st->setStyleSheet(statusStyle(e.getStatut()));
         t->setCellWidget(r, 4, centered(st));
 
-        // 5 : QR Code reel
-        auto *qr = new QLabel;
-        qr->setPixmap(makeQrPixmap(codeFor(e.id), 2));
-        qr->setToolTip(codeFor(e.id));
-        t->setCellWidget(r, 5, centered(qr));
-
-        // 6 : emploi du temps (Visualiser / Modifier / Assigner)
+        // 5 : emploi du temps (Visualiser / Modifier / Assigner)
         auto *act = new QWidget;
         auto *al = new QHBoxLayout(act);
         al->setContentsMargins(4, 0, 4, 0);
         al->setSpacing(5);
-        auto mk = [this, act, al, id = e.id](const QString &txt, Mode m) {
+        auto mk = [this, act, al, id = e.getId()](const QString &txt, Mode m) {
             auto *b = new QPushButton(txt, act);
             b->setObjectName("rowBtn");
             b->setCursor(Qt::PointingHandCursor);
@@ -830,26 +924,37 @@ void EmployesPage::refreshTable()
         mk("Visualiser", Mode::View);
         mk("Modifier", Mode::Edit);
         mk("Assigner", Mode::Assign);
-        t->setCellWidget(r, 6, act);
+        t->setCellWidget(r, 5, act);
+
+        if (e.getId() == selected) t->selectRow(r);
     }
+
+    // Vue SQL : le modele est fourni par Employe::afficher() (architecture Modele-Vue)
+    QAbstractItemModel *old = ui->tableViewSql->model();
+    ui->tableViewSql->setModel(m_dao.afficher());
+    delete old;
+    ui->tableViewSql->resizeColumnsToContents();
+    ui->tableViewSql->horizontalHeader()->setStretchLastSection(true);
+
+    ui->labelCount->setText(QString("%1 employé(s) affiché(s) sur %2").arg(rows.size()).arg(m_employees.size()));
 
     // badge de la cloche = agents en formation
     int n = 0;
-    for (const Employee &e : qAsConst(m_employees)) if (e.statut == "En formation") ++n;
+    for (const Employe &e : std::as_const(m_employees)) if (e.getStatut() == "En formation") ++n;
     if (m_badge) { m_badge->setText(QString::number(n)); m_badge->setVisible(n > 0); }
 }
 
 // ---------------------------------------------------------------------------
-//  Smart Planning IA (regles simples, sans base de donnees)
+//  Smart Planning IA (regles simples ; les gardes sont enregistrees dans Oracle)
 // ---------------------------------------------------------------------------
 void EmployesPage::updatePlanning()
 {
     const int total = m_employees.size();
     int dispo = 0, assigned = 0;
     int perShift[3] = {0, 0, 0};
-    for (const Employee &e : qAsConst(m_employees)) {
-        if (e.statut != "En formation") ++dispo;
-        const int gi = kGardes.indexOf(e.garde);
+    for (const Employe &e : std::as_const(m_employees)) {
+        if (e.getStatut() != "En formation") ++dispo;
+        const int gi = kGardes.indexOf(e.getGarde());
         if (gi >= 0 && gi < 3) { ++assigned; ++perShift[gi]; }
     }
     const int cap = 4;
@@ -858,24 +963,25 @@ void EmployesPage::updatePlanning()
         const int v = qMin(100, perShift[i] * 100 / cap);
         bars[i]->setValue(v);
         const QString color = v >= 75 ? "#2e9e4f" : "#c62828";
-        bars[i]->setStyleSheet(QString("QProgressBar{background:#e3e6e9;border:none;border-radius:4px;}"
-                                       "QProgressBar::chunk{background:%1;border-radius:4px;}").arg(color));
+        bars[i]->setStyleSheet(QString("QProgressBar{background:#e3e6e9;border:none;border-radius:6px;}"
+                                       "QProgressBar::chunk{background:%1;border-radius:6px;}").arg(color));
     }
     ui->barDispo->setValue(total ? dispo * 100 / total : 0);
     ui->barProgress->setValue(total ? assigned * 100 / total : 0);
-    ui->barDispo->setStyleSheet("QProgressBar{background:#e3e6e9;border:none;border-radius:3px;}QProgressBar::chunk{background:#2e9e4f;border-radius:3px;}");
-    ui->barProgress->setStyleSheet("QProgressBar{background:#e3e6e9;border:none;border-radius:3px;}QProgressBar::chunk{background:#c62828;border-radius:3px;}");
+    ui->barDispo->setStyleSheet("QProgressBar{background:#e3e6e9;border:none;border-radius:5px;}QProgressBar::chunk{background:#2e9e4f;border-radius:5px;}");
+    ui->barProgress->setStyleSheet("QProgressBar{background:#e3e6e9;border:none;border-radius:5px;}QProgressBar::chunk{background:#c62828;border-radius:5px;}");
 }
 
 void EmployesPage::onGenererPlanning()
 {
-    for (Employee &e : m_employees) e.garde = "Aucune";
+    const int n = m_employees.size();
+    QVector<QString> garde(n, "Aucune");
 
     QVector<int> pool;                      // agents disponibles, meilleurs grades d'abord
-    for (int i = 0; i < m_employees.size(); ++i)
-        if (m_employees[i].statut != "En formation") pool.append(i);
+    for (int i = 0; i < n; ++i)
+        if (m_employees[i].getStatut() != "En formation") pool.append(i);
     std::stable_sort(pool.begin(), pool.end(), [this](int a, int b) {
-        return m_employees[a].grade > m_employees[b].grade;
+        return m_employees[a].getGrade() > m_employees[b].getGrade();
     });
 
     const int cap = 4;
@@ -886,10 +992,9 @@ void EmployesPage::onGenererPlanning()
             any = false;
             for (const QString &spec : kSpecs) {
                 if (counts[s] >= cap) break;
-                for (int idx : qAsConst(pool)) {
-                    Employee &e = m_employees[idx];
-                    if (e.garde == "Aucune" && e.specialite == spec) {
-                        e.garde = kGardes[s];
+                for (int idx : std::as_const(pool)) {
+                    if (garde[idx] == "Aucune" && m_employees[idx].getSpecialite() == spec) {
+                        garde[idx] = kGardes[s];
                         ++counts[s];
                         any = true;
                         break;
@@ -898,17 +1003,27 @@ void EmployesPage::onGenererPlanning()
             }
         }
     }
+
+    QVector<QPair<int, QString>> maj;
+    for (int i = 0; i < n; ++i)
+        maj.append({m_employees[i].getId(), garde[i]});
+    if (!Employe::changerGardes(maj)) {
+        addBubble("⚠ Impossible d'enregistrer le planning dans Oracle : " + Employe::derniereErreur(), false);
+        return;
+    }
+
+    reloadFromDb();
     refreshTable();
     updatePlanning();
     const QString msg = QString("Planning généré : jour %1/%4, nuit %2/%4, week-end %3/%4. "
                                 "Les agents en formation sont exclus ; spécialités équilibrées, grades élevés prioritaires.")
                             .arg(counts[0]).arg(counts[1]).arg(counts[2]).arg(cap);
     addBubble(msg, false);
-    statusBar()->showMessage("Planning de garde généré.", 4000);
+    statusBar()->showMessage("Planning de garde généré et enregistré.", 4000);
 }
 
 // ---------------------------------------------------------------------------
-//  Chatbot RH (reponses par regles, sans base de donnees)
+//  Chatbot RH (reponses par regles a partir des donnees Oracle)
 // ---------------------------------------------------------------------------
 void EmployesPage::addBubble(const QString &text, bool fromUser)
 {
@@ -920,7 +1035,7 @@ void EmployesPage::addBubble(const QString &text, bool fromUser)
     auto *bubble = new QLabel(text);
     bubble->setWordWrap(true);
     bubble->setObjectName(fromUser ? "bubbleUser" : "bubbleBot");
-    bubble->setMaximumWidth(210);
+    bubble->setMaximumWidth(270);
     bubble->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     auto *av = new QLabel;
@@ -1003,7 +1118,7 @@ QString EmployesPage::answerFor(const QString &question) const
     };
     auto names = [this](const QString &statut) {
         QStringList l;
-        for (const Employee &e : m_employees) if (e.statut == statut) l << e.nom;
+        for (const Employe &e : m_employees) if (e.getStatut() == statut) l << e.nomComplet();
         return l;
     };
 
@@ -1026,30 +1141,30 @@ QString EmployesPage::answerFor(const QString &question) const
     }
     if (has({"volontaire"})) {
         int n = 0;
-        for (const Employee &e : m_employees) if (e.volontaire) ++n;
+        for (const Employe &e : m_employees) if (e.isVolontaire()) ++n;
         return QString("%1 volontaire(s) enregistré(s).").arg(n);
     }
     for (const QString &spec : kSpecs) {
         if (q.contains(spec.toLower().left(5))) {
             int n = 0;
-            for (const Employee &e : m_employees) if (e.specialite == spec) ++n;
+            for (const Employe &e : m_employees) if (e.getSpecialite() == spec) ++n;
             return QString("%1 agent(s) de spécialité %2.").arg(n).arg(spec);
         }
     }
     if (has({"grade", "étoile", "etoile"})) {
         int c[4] = {0, 0, 0, 0};
-        for (const Employee &e : m_employees) ++c[qBound(1, e.grade, 3)];
+        for (const Employe &e : m_employees) ++c[qBound(1, e.getGrade(), 3)];
         return QString("Répartition par grade : 1 étoile = %1, 2 étoiles = %2, 3 étoiles = %3.").arg(c[1]).arg(c[2]).arg(c[3]);
     }
     if (has({"planning", "garde"}))
-        return "Cliquez sur « Générer Planning » : je répartis les agents disponibles par grade et spécialité (jour / nuit / week-end).";
-    if (has({"qr", "pointage", "check"}))
-        return "Cliquez sur « Scanner QRCode (Check-in) » puis saisissez le code (ex. FS-AGT-001). Un second passage fait le check-out.";
+        return "Cliquez sur « Générer Planning » : je répartis les agents disponibles par grade et spécialité (jour / nuit / week-end) et j'enregistre le résultat dans la base.";
+    if (has({"face", "pointage", "check"}))
+        return "Cliquez sur « Face ID », choisissez l'agent : un premier passage le met en service, un second en pause.";
     if (has({"combien", "nombre", "effectif", "total"})) {
         int s = 0, p = 0, f = 0;
-        for (const Employee &e : m_employees) {
-            if (e.statut == "En service") ++s;
-            else if (e.statut == "En pause") ++p;
+        for (const Employe &e : m_employees) {
+            if (e.getStatut() == "En service") ++s;
+            else if (e.getStatut() == "En pause") ++p;
             else ++f;
         }
         return QString("Effectif total : %1 (en service %2, en pause %3, en formation %4).").arg(m_employees.size()).arg(s).arg(p).arg(f);
@@ -1057,46 +1172,879 @@ QString EmployesPage::answerFor(const QString &question) const
     return "Je n'ai pas compris. Essayez : « combien d'agents », « qui est en pause », « agents Medic », « répartition par grade », « planning ».";
 }
 
+
 // ---------------------------------------------------------------------------
-//  Communication directe (ouvre l'application mail / SMS / WhatsApp du systeme)
+//  Face ID (camera)
 // ---------------------------------------------------------------------------
-void EmployesPage::onEnvoyerEmail()
+void EmployesPage::onFaceId()
 {
-    const QString to = ui->lineEditEmail->text().trimmed();
-    if (to.isEmpty()) { statusBar()->showMessage("Saisissez au moins une adresse email.", 3000); return; }
-    QUrl url;
-    url.setScheme("mailto");
-    url.setPath(to);
-    QUrlQuery q;
-    q.addQueryItem("subject", "Fire Station – Communication");
-    url.setQuery(q);
-    QDesktopServices::openUrl(url);
-    statusBar()->showMessage("Ouverture de l'application mail…", 3000);
+    if (m_employees.isEmpty()) {
+        statusBar()->showMessage("Aucun employé : ajoutez d'abord un employé.", 4000);
+        return;
+    }
+    FaceIdDialog dlg(m_employees, selectedEmployeeId(), this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    const Employe *e = findEmployee(dlg.employeId());
+    if (!e) return;
+    const QString msg = pointage(*e);          // 1er passage = entree, 2e passage = sortie (Oracle)
+    reloadFromDb();
+    refreshTable();
+    updatePlanning();
+    statusBar()->showMessage(msg, 6000);
+    QMessageBox::information(this, "Face ID", "Visage reconnu.\n" + msg);
 }
 
-static void splitNumMsg(const QString &raw, QString &num, QString &msg)
+// ---------------------------------------------------------------------------
+//  Statistiques
+// ---------------------------------------------------------------------------
+void EmployesPage::onStatistiques()
 {
-    const int i = raw.indexOf(';');
-    num = (i < 0 ? raw : raw.left(i)).trimmed();
-    msg = (i < 0 ? QString() : raw.mid(i + 1)).trimmed();
+    auto *page = new StatsPage(m_employees);
+    connect(page, &StatsPage::retour, this, [this] { hidePanel(); });
+    showPanel(page);
 }
 
-void EmployesPage::onEnvoyerSms()
+// ---------------------------------------------------------------------------
+//  Tri
+// ---------------------------------------------------------------------------
+QString EmployesPage::sortLabel() const
 {
-    QString num, msg;
-    splitNumMsg(ui->lineEditSms->text(), num, msg);
-    if (num.isEmpty()) { statusBar()->showMessage("Format : numéro ; message", 3000); return; }
-    QDesktopServices::openUrl(QUrl("sms:" + num + "?body=" + QString::fromUtf8(QUrl::toPercentEncoding(msg))));
-    statusBar()->showMessage("Ouverture de l'application SMS…", 3000);
+    switch (m_sortKey) {
+    case SortKey::NomAZ:      return "nom A → Z";
+    case SortKey::NomZA:      return "nom Z → A";
+    case SortKey::GradeAsc:   return "grade croissant";
+    case SortKey::GradeDesc:  return "grade décroissant";
+    case SortKey::Specialite: return "spécialité";
+    case SortKey::Statut:     return "statut";
+    default:                  return "numéro";
+    }
 }
 
-void EmployesPage::onEnvoyerWhatsApp()
+void EmployesPage::onTrier()
 {
-    QString num, msg;
-    splitNumMsg(ui->lineEditSms->text(), num, msg);
-    QString digits;
-    for (const QChar &c : num) if (c.isDigit()) digits += c;
-    if (digits.isEmpty()) { statusBar()->showMessage("Format : 216XXXXXXXX ; message (avec indicatif pays)", 4000); return; }
-    QDesktopServices::openUrl(QUrl("https://wa.me/" + digits + "?text=" + QString::fromUtf8(QUrl::toPercentEncoding(msg))));
-    statusBar()->showMessage("Ouverture de WhatsApp…", 3000);
+    QMenu menu(this);
+    auto *group = new QActionGroup(&menu);
+    const QVector<QPair<QString, SortKey>> items = {
+        {"Par numéro (ID)",         SortKey::Id},
+        {"Nom : A → Z",             SortKey::NomAZ},
+        {"Nom : Z → A",             SortKey::NomZA},
+        {"Grade : croissant",       SortKey::GradeAsc},
+        {"Grade : décroissant",     SortKey::GradeDesc},
+        {"Spécialité",              SortKey::Specialite},
+        {"Statut de présence",      SortKey::Statut},
+    };
+    for (const auto &it : items) {
+        QAction *a = menu.addAction(it.first);
+        a->setCheckable(true);
+        a->setChecked(it.second == m_sortKey);
+        a->setActionGroup(group);
+        a->setData(int(it.second));
+    }
+    QAction *chosen = menu.exec(ui->btnTrier->mapToGlobal(QPoint(0, ui->btnTrier->height())));
+    if (!chosen) return;
+    m_sortKey = static_cast<SortKey>(chosen->data().toInt());
+    refreshTable();
+    statusBar()->showMessage("Tri appliqué : " + sortLabel(), 3000);
+}
+
+// ---------------------------------------------------------------------------
+//  Calendrier de l'employe selectionne
+// ---------------------------------------------------------------------------
+void EmployesPage::onCalendrier()
+{
+    const int id = selectedEmployeeId();
+    const Employe *e = (id >= 0) ? findEmployee(id) : nullptr;
+    if (!e) {
+        const QString msg = "Sélectionnez d'abord un employé dans le tableau (clic sur sa ligne), puis cliquez sur « Calendrier ».";
+        addBubble(msg, false);
+        statusBar()->showMessage(msg, 5000);
+        return;
+    }
+    auto *page = new CalendarPage(*e);
+    connect(page, &CalendarPage::retour, this, [this] { hidePanel(); });
+    showPanel(page);
+}
+
+// ---------------------------------------------------------------------------
+//  Pages integrees (meme fenetre) : le tableau est remplace par la page, puis restaure
+// ---------------------------------------------------------------------------
+void EmployesPage::showPanel(QWidget *page)
+{
+    while (m_panel->count() > 0) {                // supprime l'ancienne page
+        QWidget *old = m_panel->widget(0);
+        m_panel->removeWidget(old);
+        old->deleteLater();
+    }
+    m_panel->addWidget(page);
+    m_panel->setCurrentWidget(page);
+    ui->formPanel->setVisible(false);
+    ui->tableEmployees->setVisible(false);
+    ui->tableViewSql->setVisible(false);
+    m_panel->setVisible(true);
+}
+
+void EmployesPage::hidePanel()
+{
+    if (!m_panel->isVisible())
+        return;
+    m_panel->setVisible(false);
+    const bool sql = ui->btnVueSql->isChecked();
+    ui->tableViewSql->setVisible(sql);
+    ui->tableEmployees->setVisible(!sql);
+}
+
+// ---------------------------------------------------------------------------
+//  Export PDF (liste affichee : filtres + tri pris en compte)
+// ---------------------------------------------------------------------------
+void EmployesPage::onExporterPdf()
+{
+    if (m_rows.isEmpty()) {
+        QMessageBox::information(this, "Exporter PDF", "Aucun employé à exporter.");
+        return;
+    }
+    const QString def = QString("employes_%1.pdf").arg(QDate::currentDate().toString("yyyyMMdd"));
+    QString path = QFileDialog::getSaveFileName(this, "Exporter en PDF", def, "Fichier PDF (*.pdf)");
+    if (path.isEmpty()) return;
+    if (!path.endsWith(".pdf", Qt::CaseInsensitive)) path += ".pdf";
+
+    int s = 0, p = 0, f = 0, v = 0;
+    for (const Employe &e : std::as_const(m_rows)) {
+        if (e.getStatut() == "En service") ++s;
+        else if (e.getStatut() == "En pause") ++p;
+        else ++f;
+        if (e.isVolontaire()) ++v;
+    }
+
+    auto esc = [](const QString &x) { return x.toHtmlEscaped(); };
+    QString html;
+    html += "<html><body style='font-family:Arial;'>";
+    html += "<table width='100%'><tr>";
+    html += "<td width='14%'><img src='logo' width='90'></td>";
+    html += "<td><h1 style='color:#7a0f0f;font-size:20pt;'>Fire Station – Liste des employés</h1>"
+            "<p style='font-size:10pt;color:#455a64;'>Édité le " + QDate::currentDate().toString("dd/MM/yyyy") +
+            " · " + QString::number(m_rows.size()) + " employé(s) · tri : " + esc(sortLabel()) + "</p></td>";
+    html += "</tr></table><br>";
+    html += "<table width='100%' border='1' cellspacing='0' cellpadding='5' style='border-collapse:collapse;font-size:9pt;'>";
+    html += "<tr style='background-color:#2f3e4e;color:white;'>"
+            "<th>N°</th><th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Grade</th>"
+            "<th>Spécialité</th><th>Statut</th><th>Emploi du temps</th><th>Type</th></tr>";
+    bool alt = false;
+    for (const Employe &e : std::as_const(m_rows)) {
+        const QString bg = alt ? "#f3f5f7" : "#ffffff";
+        alt = !alt;
+        QString statutBg = "#b9e8c0";
+        if (e.getStatut() == "En pause") statutBg = "#f7dc7f";
+        if (e.getStatut() == "En formation") statutBg = "#cfe3f5";
+        html += QString("<tr style='background-color:%1;'>").arg(bg);
+        html += QString("<td align='center'>%1</td><td>%2</td><td>%3</td><td>%4</td><td align='center'>%5 ★</td><td>%6</td>")
+                    .arg(e.getId()).arg(esc(e.getNom()), esc(e.getPrenom()), esc(e.getTelephone()))
+                    .arg(e.getGrade()).arg(esc(e.getSpecialite()));
+        html += QString("<td align='center' style='background-color:%1;'>%2</td><td>%3</td><td align='center'>%4</td></tr>")
+                    .arg(statutBg, esc(e.getStatut()), esc(e.getGarde()), e.isVolontaire() ? QString("Volontaire") : QString("Employé"));
+    }
+    html += "</table><br>";
+    html += QString("<p style='font-size:10pt;'><b>Résumé :</b> %1 en service · %2 en pause · %3 en formation · %4 volontaire(s)</p>")
+                .arg(s).arg(p).arg(f).arg(v);
+    html += "</body></html>";
+
+    QTextDocument doc;
+    if (!m_logo.isNull())
+        doc.addResource(QTextDocument::ImageResource, QUrl("logo"), m_logo.toImage());
+    doc.setHtml(html);
+
+    QPdfWriter writer(path);
+    writer.setPageSize(QPageSize(QPageSize::A4));
+    writer.setPageOrientation(QPageLayout::Landscape);
+    writer.setPageMargins(QMarginsF(12, 12, 12, 12), QPageLayout::Millimeter);
+    writer.setTitle("Liste des employés");
+    doc.print(&writer);
+
+    statusBar()->showMessage("PDF exporté : " + path, 6000);
+    if (QMessageBox::question(this, "Exporter PDF", "PDF créé avec succès.\nVoulez-vous l'ouvrir maintenant ?") == QMessageBox::Yes)
+        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+
+// ===========================================================================
+//  Page STATISTIQUES (barres + cercles)
+// ===========================================================================
+
+
+// ---------------------------------------------------------------------------
+//  StatCard
+// ---------------------------------------------------------------------------
+StatCard::StatCard(const QString &title, const QVector<StatItem> &items, QWidget *parent)
+    : QWidget(parent), m_title(title), m_items(items)
+{
+    setMinimumHeight(200);
+}
+
+void StatCard::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // fond de la carte
+    p.setPen(QColor("#d9dde1"));
+    p.setBrush(Qt::white);
+    p.drawRoundedRect(QRectF(1, 1, width() - 2, height() - 2), 8, 8);
+
+    // titre
+    QFont tf = font();
+    tf.setBold(true);
+    tf.setPixelSize(14);
+    p.setFont(tf);
+    p.setPen(QColor("#37474f"));
+    p.drawText(QRectF(16, 8, width() - 32, 24), Qt::AlignLeft | Qt::AlignVCenter, m_title);
+
+    int total = 0;
+    for (const StatItem &it : m_items)
+        total += it.value;
+
+    // ---- graphique circulaire (anneau) ----
+    const int side = qMax(80, std::min({height() - 54, 150, int(width() * 0.33)}));
+    const QRectF ring(18, 40, side, side);
+    p.setPen(Qt::NoPen);
+    if (total <= 0) {
+        p.setBrush(QColor("#e3e6e9"));
+        p.drawEllipse(ring);
+    } else {
+        int start = 90 * 16;                       // on commence en haut
+        int used = 0;
+        for (int i = 0; i < m_items.size(); ++i) {
+            int span = int(-(m_items[i].value * 360.0 / total) * 16);
+            if (i == m_items.size() - 1)           // evite le petit vide d'arrondi
+                span = -(360 * 16) - used;
+            used += span;
+            if (m_items[i].value > 0) {
+                p.setBrush(m_items[i].color);
+                p.drawPie(ring, start, span);
+            }
+            start += span;
+        }
+    }
+    p.setBrush(Qt::white);                         // trou de l'anneau
+    p.drawEllipse(ring.center(), side * 0.30, side * 0.30);
+
+    QFont cf = font();
+    cf.setBold(true);
+    cf.setPixelSize(20);
+    p.setFont(cf);
+    p.setPen(QColor("#263238"));
+    p.drawText(QRectF(ring.center().x() - 30, ring.center().y() - 16, 60, 22), Qt::AlignCenter, QString::number(total));
+    QFont sf = font();
+    sf.setPixelSize(10);
+    p.setFont(sf);
+    p.setPen(QColor("#607d8b"));
+    p.drawText(QRectF(ring.center().x() - 30, ring.center().y() + 4, 60, 14), Qt::AlignCenter, "total");
+
+    // ---- barres de pourcentage ----
+    const qreal x0 = ring.right() + 20;
+    const qreal barW = width() - x0 - 16;
+    const int n = qMax(1, m_items.size());
+    const qreal rowH = qMin<qreal>(40.0, (height() - 54.0) / n);
+    qreal y = 42;
+    QFont lf = font();
+    lf.setPixelSize(11);
+    for (const StatItem &it : m_items) {
+        const double pct = total > 0 ? it.value * 100.0 / total : 0.0;
+
+        p.setFont(lf);
+        p.setPen(QColor("#37474f"));
+        p.drawText(QRectF(x0, y, barW - 58, 16), Qt::AlignLeft | Qt::AlignVCenter,
+                   QString("%1 (%2)").arg(it.label).arg(it.value));
+        QFont bf = lf;
+        bf.setBold(true);
+        p.setFont(bf);
+        p.drawText(QRectF(x0 + barW - 58, y, 58, 16), Qt::AlignRight | Qt::AlignVCenter,
+                   QString("%1 %").arg(pct, 0, 'f', 1));
+
+        const QRectF track(x0, y + 18, barW, 10);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor("#e3e6e9"));
+        p.drawRoundedRect(track, 5, 5);
+        if (pct > 0) {
+            p.setBrush(it.color);
+            p.drawRoundedRect(QRectF(track.x(), track.y(), qMax<qreal>(10.0, barW * pct / 100.0), track.height()), 5, 5);
+        }
+        y += rowH;
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  StatsDialog
+// ---------------------------------------------------------------------------
+StatsPage::StatsPage(const QVector<Employe> &employees, QWidget *parent)
+    : QWidget(parent)
+{
+
+    auto count = [&](auto pred) {
+        int n = 0;
+        for (const Employe &e : employees)
+            if (pred(e)) ++n;
+        return n;
+    };
+
+    const QColor vert("#2e9e4f"), jaune("#f0b429"), bleu("#3b6fb6"), rouge("#c62828"), gris("#90a4ae");
+
+    // ---- statut de presence
+    QVector<StatItem> statut = {
+        {"En service",   count([](const Employe &e) { return e.getStatut() == "En service"; }),   vert},
+        {"En pause",     count([](const Employe &e) { return e.getStatut() == "En pause"; }),     jaune},
+        {"En formation", count([](const Employe &e) { return e.getStatut() == "En formation"; }), bleu},
+    };
+    // ---- specialite
+    QVector<StatItem> spec = {
+        {"Fire",      count([](const Employe &e) { return e.getSpecialite() == "Fire"; }),      rouge},
+        {"Medic",     count([](const Employe &e) { return e.getSpecialite() == "Medic"; }),     bleu},
+        {"Logistics", count([](const Employe &e) { return e.getSpecialite() == "Logistics"; }), jaune},
+    };
+    // ---- grade
+    QVector<StatItem> grade = {
+        {"1 étoile",  count([](const Employe &e) { return e.getGrade() == 1; }), bleu},
+        {"2 étoiles", count([](const Employe &e) { return e.getGrade() == 2; }), jaune},
+        {"3 étoiles", count([](const Employe &e) { return e.getGrade() == 3; }), rouge},
+    };
+    // ---- emploi du temps
+    QVector<StatItem> garde = {
+        {"Garde de jour",  count([](const Employe &e) { return e.getGarde().startsWith("Garde de jour"); }),  jaune},
+        {"Garde de nuit",  count([](const Employe &e) { return e.getGarde().startsWith("Garde de nuit"); }),  bleu},
+        {"Astreinte week-end", count([](const Employe &e) { return e.getGarde().startsWith("Astreinte"); }), vert},
+        {"Aucune",         count([](const Employe &e) { return e.getGarde() == "Aucune"; }),                  gris},
+    };
+    // ---- employes / volontaires
+    const int nbVol = count([](const Employe &e) { return e.isVolontaire(); });
+    QVector<StatItem> type = {
+        {"Employés",    int(employees.size()) - nbVol, bleu},
+        {"Volontaires", nbVol,                          rouge},
+    };
+
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(0, 0, 0, 0);
+    root->setSpacing(10);
+
+    auto *head = new QLabel(QString("<b style='font-size:16px'>Statistiques</b> &nbsp; — &nbsp; %1 employé(s) enregistré(s)")
+                                .arg(employees.size()));
+    root->addWidget(head);
+
+    auto *scroll = new QScrollArea;
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto *content = new QWidget;
+    content->setStyleSheet("background:transparent;");
+    auto *grid = new QGridLayout(content);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setSpacing(12);
+    grid->addWidget(new StatCard("Statut de présence", statut), 0, 0);
+    grid->addWidget(new StatCard("Spécialités", spec), 0, 1);
+    grid->addWidget(new StatCard("Grades", grade), 1, 0);
+    grid->addWidget(new StatCard("Emploi du temps", garde), 1, 1);
+    grid->addWidget(new StatCard("Employés / Volontaires", type), 2, 0);
+    scroll->setWidget(content);
+    root->addWidget(scroll, 1);
+
+    auto *close = new QPushButton("← Retour au tableau");
+    close->setCursor(Qt::PointingHandCursor);
+    close->setStyleSheet("QPushButton { background:#2f3e4e; color:white; border:none; border-radius:6px;"
+                         " padding:8px 22px; font-weight:bold; } QPushButton:hover { background:#3d5166; }");
+    connect(close, &QPushButton::clicked, this, &StatsPage::retour);
+    auto *row = new QHBoxLayout;
+    row->addStretch();
+    row->addWidget(close);
+    root->addLayout(row);
+}
+
+
+// ===========================================================================
+//  Page CALENDRIER de travail
+// ===========================================================================
+
+
+namespace {
+const QStringList kGardesJour = {"Garde de jour (08h-20h)", "Garde de nuit (20h-08h)", "Astreinte week-end"};
+
+QString styleBtn(bool dark)
+{
+    return dark ? "QPushButton { background:#2f3e4e; color:white; border:none; border-radius:6px; padding:8px 14px; font-weight:bold; }"
+                  "QPushButton:hover { background:#3d5166; }"
+                : "QPushButton { background:#d9dcdf; color:#37474f; border:none; border-radius:6px; padding:8px 14px; }"
+                  "QPushButton:hover { background:#c8ccd0; }";
+}
+} // namespace
+
+CalendarPage::CalendarPage(const Employe &employe, QWidget *parent)
+    : QWidget(parent), m_emp(employe)
+{
+    setStyleSheet("QLabel { color:#37474f; }"
+                  "QComboBox { border:1px solid #cfd4d9; border-radius:6px; padding:3px 8px; background:white; color:#263238; }"
+                  "QListWidget { background:white; border:1px solid #d9dde1; border-radius:6px; color:#263238; }");
+
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(0, 0, 0, 0);
+    root->setSpacing(10);
+
+    root->addWidget(new QLabel(QString("<b style='font-size:15px'>%1</b> &nbsp; Spécialité : %2 &nbsp; · &nbsp; Statut : %3")
+                                   .arg(m_emp.nomComplet(), m_emp.getSpecialite(), m_emp.getStatut())));
+
+    auto *body = new QHBoxLayout;
+    body->setSpacing(12);
+
+    m_cal = new QCalendarWidget;
+    m_cal->setGridVisible(true);
+    m_cal->setFirstDayOfWeek(Qt::Monday);
+    m_cal->setVerticalHeaderFormat(QCalendarWidget::ISOWeekNumbers);
+    m_cal->setSelectedDate(QDate::currentDate());
+    body->addWidget(m_cal, 3);
+
+    auto *side = new QVBoxLayout;
+    side->setSpacing(8);
+    side->addWidget(new QLabel("<b>Garde pour le jour sélectionné</b>"));
+    m_combo = new QComboBox;
+    m_combo->addItems(kGardesJour);
+    side->addWidget(m_combo);
+
+    auto *bAff = new QPushButton("Affecter à ce jour");
+    auto *bSem = new QPushButton("Affecter à toute la semaine");
+    auto *bRet = new QPushButton("Retirer ce jour");
+    bAff->setStyleSheet(styleBtn(true));
+    bSem->setStyleSheet(styleBtn(true));
+    bRet->setStyleSheet(styleBtn(false));
+    for (QPushButton *b : {bAff, bSem, bRet})
+        b->setCursor(Qt::PointingHandCursor);
+    side->addWidget(bAff);
+    side->addWidget(bSem);
+    side->addWidget(bRet);
+
+    side->addSpacing(6);
+    side->addWidget(new QLabel("<b>Jours planifiés ce mois-ci</b>"));
+    m_list = new QListWidget;
+    side->addWidget(m_list, 1);
+
+    // legende
+    auto *leg = new QLabel("<span style='background:#f7dc7f'>&nbsp;&nbsp;&nbsp;</span> jour &nbsp; "
+                           "<span style='background:#9fb4d6'>&nbsp;&nbsp;&nbsp;</span> nuit &nbsp; "
+                           "<span style='background:#b9e8c0'>&nbsp;&nbsp;&nbsp;</span> week-end");
+    side->addWidget(leg);
+    body->addLayout(side, 2);
+    root->addLayout(body, 1);
+
+    m_info = new QLabel;
+    m_info->setWordWrap(true);
+    root->addWidget(m_info);
+
+    auto *close = new QPushButton("← Retour au tableau");
+    close->setStyleSheet(styleBtn(false));
+    close->setCursor(Qt::PointingHandCursor);
+    auto *row = new QHBoxLayout;
+    row->addStretch();
+    row->addWidget(close);
+    root->addLayout(row);
+
+    connect(bAff, &QPushButton::clicked, this, &CalendarPage::onAffecter);
+    connect(bSem, &QPushButton::clicked, this, &CalendarPage::onAffecterSemaine);
+    connect(bRet, &QPushButton::clicked, this, &CalendarPage::onRetirer);
+    connect(close, &QPushButton::clicked, this, &CalendarPage::retour);
+    connect(m_cal, &QCalendarWidget::currentPageChanged, this, [this](int, int) { fillList(); });
+    connect(m_cal, &QCalendarWidget::clicked, this, [this](const QDate &d) {
+        const QString g = m_plan.value(d);
+        const int i = kGardesJour.indexOf(g);
+        if (i >= 0) m_combo->setCurrentIndex(i);
+        m_info->setText(g.isEmpty() ? QString("%1 : aucune garde.").arg(d.toString("dddd d MMMM yyyy"))
+                                    : QString("%1 : %2.").arg(d.toString("dddd d MMMM yyyy"), g));
+    });
+
+    Employe::assurerTablePlanning();
+    refresh();
+}
+
+QColor CalendarPage::colorFor(const QString &garde) const
+{
+    if (garde.startsWith("Garde de jour")) return QColor("#f7dc7f");
+    if (garde.startsWith("Garde de nuit")) return QColor("#9fb4d6");
+    return QColor("#b9e8c0");
+}
+
+void CalendarPage::refresh()
+{
+    m_plan = Employe::chargerPlanning(m_emp.getId());
+    colorize();
+    fillList();
+}
+
+void CalendarPage::colorize()
+{
+    m_cal->setDateTextFormat(QDate(), QTextCharFormat());       // efface les anciennes couleurs
+    for (auto it = m_plan.cbegin(); it != m_plan.cend(); ++it) {
+        QTextCharFormat f;
+        f.setBackground(colorFor(it.value()));
+        f.setFontWeight(QFont::Bold);
+        f.setForeground(QColor("#263238"));
+        m_cal->setDateTextFormat(it.key(), f);
+    }
+}
+
+void CalendarPage::fillList()
+{
+    m_list->clear();
+    const int y = m_cal->yearShown(), m = m_cal->monthShown();
+    for (auto it = m_plan.cbegin(); it != m_plan.cend(); ++it) {
+        if (it.key().year() != y || it.key().month() != m) continue;
+        auto *item = new QListWidgetItem(QString("%1 — %2").arg(it.key().toString("ddd dd/MM"), it.value()));
+        item->setBackground(colorFor(it.value()));
+        m_list->addItem(item);
+    }
+    if (m_list->count() == 0)
+        m_list->addItem("Aucun jour planifié.");
+}
+
+void CalendarPage::onAffecter()
+{
+    const QDate d = m_cal->selectedDate();
+    const QString g = m_combo->currentText();
+    if (!Employe::affecterJour(m_emp.getId(), d, g)) {
+        m_info->setText("⚠ Échec Oracle : " + Employe::derniereErreur().toHtmlEscaped());
+        return;
+    }
+    refresh();
+    m_info->setText(QString("✔ %1 → %2 (enregistré dans Oracle).").arg(d.toString("dddd d MMMM"), g));
+}
+
+void CalendarPage::onAffecterSemaine()
+{
+    const QDate d = m_cal->selectedDate();
+    const QDate lundi = d.addDays(-(d.dayOfWeek() - 1));
+    const QString g = m_combo->currentText();
+    bool ok = true;
+    for (int i = 0; i < 7 && ok; ++i) {
+        const QDate j = lundi.addDays(i);
+        const bool we = j.dayOfWeek() >= 6;
+        if (g.startsWith("Astreinte") != we) continue;   // astreinte = samedi/dimanche, gardes = lundi-vendredi
+        ok = Employe::affecterJour(m_emp.getId(), j, g);
+    }
+    if (!ok) {
+        m_info->setText("⚠ Échec Oracle : " + Employe::derniereErreur().toHtmlEscaped());
+        return;
+    }
+    refresh();
+    m_info->setText(QString("✔ Semaine du %1 planifiée : %2.").arg(lundi.toString("dd/MM/yyyy"), g));
+}
+
+void CalendarPage::onRetirer()
+{
+    const QDate d = m_cal->selectedDate();
+    if (!m_plan.contains(d)) {
+        m_info->setText("Aucune garde à retirer pour ce jour.");
+        return;
+    }
+    if (!Employe::retirerJour(m_emp.getId(), d)) {
+        m_info->setText("⚠ Échec Oracle : " + Employe::derniereErreur().toHtmlEscaped());
+        return;
+    }
+    refresh();
+    m_info->setText(QString("Garde retirée pour le %1.").arg(d.toString("dddd d MMMM")));
+}
+
+
+// ===========================================================================
+//  FACE ID (camera)
+// ===========================================================================
+
+
+
+namespace {
+constexpr int kScanDurationMs = 3000;
+constexpr int kScanStepMs = 50;
+constexpr double kOvalRx = 0.19;   // demi-largeur du guide (fraction de la largeur)
+constexpr double kOvalRy = 0.38;   // demi-hauteur du guide (fraction de la hauteur)
+}
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+QList<QVideoFrame::PixelFormat> FrameGrabber::supportedPixelFormats(QAbstractVideoBuffer::HandleType type) const
+{
+    Q_UNUSED(type);
+    return {QVideoFrame::Format_RGB32, QVideoFrame::Format_ARGB32, QVideoFrame::Format_RGB24,
+            QVideoFrame::Format_BGR24, QVideoFrame::Format_BGR32, QVideoFrame::Format_ARGB32_Premultiplied};
+}
+
+bool FrameGrabber::present(const QVideoFrame &frame)
+{
+    if (!frame.isValid())
+        return false;
+    QVideoFrame f(frame);
+    if (!f.map(QAbstractVideoBuffer::ReadOnly))
+        return false;
+    const QImage::Format fmt = QVideoFrame::imageFormatFromPixelFormat(f.pixelFormat());
+    QImage img;
+    if (fmt != QImage::Format_Invalid)
+        img = QImage(f.bits(), f.width(), f.height(), f.bytesPerLine(), fmt).copy();
+    f.unmap();
+    if (!img.isNull())
+        emit frameReady(img);
+    return true;
+}
+#endif
+
+FaceIdDialog::FaceIdDialog(const QVector<Employe> &employees, int preselectId, QWidget *parent)
+    : QDialog(parent)
+{
+    setWindowTitle("Connexion Face ID");
+    setModal(true);
+    setStyleSheet("QDialog { background:#eef0f2; } QLabel { color:#37474f; }"
+                  "QComboBox { border:1px solid #cfd4d9; border-radius:6px; padding:3px 8px; background:white; color:#263238; }");
+
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(14, 12, 14, 12);
+    root->setSpacing(8);
+
+    auto *top = new QHBoxLayout;
+    top->addWidget(new QLabel("<b>Agent :</b>"));
+    m_combo = new QComboBox;
+    m_combo->setMinimumWidth(300);
+    m_combo->setMinimumHeight(30);
+    for (const Employe &e : employees)
+        m_combo->addItem(QString("%1 (n° %2) — %3").arg(e.nomComplet()).arg(e.getId()).arg(e.getStatut()), e.getId());
+    const int idx = m_combo->findData(preselectId);
+    if (idx >= 0) m_combo->setCurrentIndex(idx);
+    top->addWidget(m_combo, 1);
+    root->addLayout(top);
+
+    m_view = new QLabel;
+    m_view->setFixedSize(640, 480);
+    m_view->setAlignment(Qt::AlignCenter);
+    m_view->setStyleSheet("background:#1b2631; color:#cfd8dc; border-radius:8px;");
+    m_view->setText("Ouverture de la caméra…");
+    root->addWidget(m_view, 0, Qt::AlignCenter);
+
+    m_bar = new QProgressBar;
+    m_bar->setRange(0, 100);
+    m_bar->setTextVisible(false);
+    m_bar->setFixedHeight(10);
+    m_bar->setStyleSheet("QProgressBar{background:#e3e6e9;border:none;border-radius:5px;}"
+                         "QProgressBar::chunk{background:#2e9e4f;border-radius:5px;}");
+    root->addWidget(m_bar);
+
+    m_status = new QLabel("Placez votre visage dans l'ovale puis cliquez sur « Scanner le visage ».");
+    m_status->setWordWrap(true);
+    m_status->setAlignment(Qt::AlignCenter);
+    root->addWidget(m_status);
+
+    auto *btns = new QHBoxLayout;
+    btns->addStretch();
+    auto *cancel = new QPushButton("Annuler");
+    cancel->setCursor(Qt::PointingHandCursor);
+    cancel->setStyleSheet("QPushButton { background:#d9dcdf; color:#37474f; border:none; border-radius:6px; padding:8px 18px; }"
+                          "QPushButton:hover { background:#c8ccd0; }");
+    m_btnScan = new QPushButton("Scanner le visage");
+    m_btnScan->setCursor(Qt::PointingHandCursor);
+    m_btnScan->setEnabled(false);
+    m_btnScan->setStyleSheet("QPushButton { background:#2f3e4e; color:white; border:none; border-radius:6px; padding:8px 18px; font-weight:bold; }"
+                             "QPushButton:hover { background:#3d5166; } QPushButton:disabled { background:#9aa5b1; }");
+    btns->addWidget(cancel);
+    btns->addWidget(m_btnScan);
+    root->addLayout(btns);
+
+    m_scanTimer = new QTimer(this);
+    m_scanTimer->setInterval(kScanStepMs);
+    connect(m_scanTimer, &QTimer::timeout, this, &FaceIdDialog::tickScan);
+    connect(m_btnScan, &QPushButton::clicked, this, &FaceIdDialog::startScan);
+    connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+
+    if (employees.isEmpty()) {
+        setStatus("⚠ Aucun employé dans la base : ajoutez d'abord un employé.", "#c62828");
+        return;
+    }
+    startCamera();
+}
+
+FaceIdDialog::~FaceIdDialog()
+{
+    stopCamera();
+}
+
+void FaceIdDialog::closeEvent(QCloseEvent *e)
+{
+    stopCamera();
+    QDialog::closeEvent(e);
+}
+
+void FaceIdDialog::setStatus(const QString &text, const QString &color)
+{
+    m_status->setText(text);
+    m_status->setStyleSheet(QString("color:%1; font-weight:bold;").arg(color));
+}
+
+// ---------------------------------------------------------------------------
+//  Camera
+// ---------------------------------------------------------------------------
+void FaceIdDialog::startCamera()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const QCameraDevice dev = QMediaDevices::defaultVideoInput();
+    if (dev.isNull()) {
+        m_view->setText("Aucune caméra détectée.");
+        setStatus("⚠ Aucune caméra détectée. Branchez une webcam et vérifiez Paramètres Windows > Confidentialité > Caméra.", "#c62828");
+        return;
+    }
+    m_camera = new QCamera(dev, this);
+    m_session = new QMediaCaptureSession(this);
+    m_session->setCamera(m_camera);
+    m_sink = new QVideoSink(this);
+    m_session->setVideoSink(m_sink);
+    connect(m_sink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &f) { onFrame(f.toImage()); });
+    connect(m_camera, &QCamera::errorOccurred, this, [this](QCamera::Error, const QString &msg) {
+        m_cameraOk = false;
+        m_btnScan->setEnabled(false);
+        setStatus("⚠ Erreur caméra : " + msg, "#c62828");
+    });
+#else
+    if (QCameraInfo::availableCameras().isEmpty()) {
+        m_view->setText("Aucune caméra détectée.");
+        setStatus("⚠ Aucune caméra détectée. Branchez une webcam et vérifiez Paramètres Windows > Confidentialité > Caméra.", "#c62828");
+        return;
+    }
+    m_camera = new QCamera(QCameraInfo::defaultCamera(), this);
+    m_grabber = new FrameGrabber(this);
+    m_camera->setViewfinder(m_grabber);
+    connect(m_grabber, &FrameGrabber::frameReady, this, &FaceIdDialog::onFrame);
+    connect(m_camera, QOverload<QCamera::Error>::of(&QCamera::error), this, [this](QCamera::Error) {
+        m_cameraOk = false;
+        m_btnScan->setEnabled(false);
+        setStatus("⚠ Erreur caméra : " + m_camera->errorString(), "#c62828");
+    });
+#endif
+    m_camera->start();
+}
+
+void FaceIdDialog::stopCamera()
+{
+    m_scanTimer->stop();
+    m_scanning = false;
+    if (m_camera) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        if (m_sink) m_sink->disconnect(this);
+#else
+        if (m_grabber) m_grabber->disconnect(this);
+#endif
+        m_camera->stop();
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Detection du visage (zone ovale : couleur de peau + relief des traits)
+// ---------------------------------------------------------------------------
+bool FaceIdDialog::looksLikeFace(const QImage &img)
+{
+    const QImage s = img.scaled(160, 120, Qt::IgnoreAspectRatio, Qt::FastTransformation)
+                         .convertToFormat(QImage::Format_RGB32);
+    const double cx = 80.0, cy = 60.0, rx = kOvalRx * 160.0, ry = kOvalRy * 120.0;
+    int inside = 0, skin = 0;
+    double sum = 0.0, sum2 = 0.0;
+    for (int y = 0; y < s.height(); ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(s.constScanLine(y));
+        for (int x = 0; x < s.width(); ++x) {
+            const double dx = (x - cx) / rx, dy = (y - cy) / ry;
+            if (dx * dx + dy * dy > 1.0) continue;
+            const double r = qRed(line[x]), g = qGreen(line[x]), b = qBlue(line[x]);
+            const double Y  = 0.299 * r + 0.587 * g + 0.114 * b;
+            const double Cb = 128.0 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+            const double Cr = 128.0 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+            ++inside;
+            sum += Y;
+            sum2 += Y * Y;
+            if (Cb >= 77 && Cb <= 127 && Cr >= 133 && Cr <= 173 && Y > 50) ++skin;
+        }
+    }
+    if (inside == 0) return false;
+    const double ratio = double(skin) / inside;
+    const double mean = sum / inside;
+    const double sd = std::sqrt(qMax(0.0, sum2 / inside - mean * mean));
+    return ratio >= 0.45 && sd >= 14.0 && mean > 45.0 && mean < 235.0;
+}
+
+void FaceIdDialog::onFrame(const QImage &raw)
+{
+    if (raw.isNull()) return;
+    if (!m_cameraOk) {
+        m_cameraOk = true;
+        if (!m_scanning) {
+            m_btnScan->setEnabled(true);
+            setStatus("Caméra prête : placez votre visage dans l'ovale puis cliquez sur « Scanner le visage ».");
+        }
+    }
+
+    const QImage img = raw.convertToFormat(QImage::Format_RGB32).mirrored(true, false);   // effet miroir
+    if (m_scanning) {
+        m_lastOk = looksLikeFace(img);
+        ++m_framesTotal;
+        if (m_lastOk) ++m_framesOk;
+    }
+
+    QImage out = img.scaled(m_view->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation)
+                     .convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    QPainter p(&out);
+    p.setRenderHint(QPainter::Antialiasing);
+    const double W = out.width(), H = out.height();
+    const QRectF oval(W * (0.5 - kOvalRx), H * (0.5 - kOvalRy), W * 2 * kOvalRx, H * 2 * kOvalRy);
+
+    QColor c = Qt::white;
+    if (m_scanning) c = m_lastOk ? QColor("#43d17a") : QColor("#ffb300");
+    p.setPen(QPen(c, 3, Qt::DashLine));
+    p.setBrush(Qt::NoBrush);
+    p.drawEllipse(oval);
+
+    if (m_scanning) {                                     // ligne de balayage
+        const double t = double(m_elapsedMs % 1000) / 1000.0;
+        const double yy = oval.top() + oval.height() * (t < 0.5 ? t * 2 : (1 - t) * 2);
+        p.setClipRegion(QRegion(oval.toAlignedRect(), QRegion::Ellipse));
+        p.setPen(QPen(QColor(67, 209, 122, 230), 3));
+        p.drawLine(QPointF(oval.left(), yy), QPointF(oval.right(), yy));
+    }
+    p.end();
+    m_view->setPixmap(QPixmap::fromImage(out));
+}
+
+// ---------------------------------------------------------------------------
+//  Scan
+// ---------------------------------------------------------------------------
+void FaceIdDialog::startScan()
+{
+    if (!m_cameraOk || m_scanning) return;
+    m_scanning = true;
+    m_elapsedMs = 0;
+    m_framesTotal = 0;
+    m_framesOk = 0;
+    m_lastOk = false;
+    m_bar->setValue(0);
+    m_btnScan->setEnabled(false);
+    m_combo->setEnabled(false);
+    setStatus("Scan en cours… restez face à la caméra, sans bouger.");
+    m_scanTimer->start();
+}
+
+void FaceIdDialog::tickScan()
+{
+    m_elapsedMs += kScanStepMs;
+    m_bar->setValue(qMin(100, m_elapsedMs * 100 / kScanDurationMs));
+    if (m_elapsedMs < kScanDurationMs) return;
+
+    m_scanTimer->stop();
+    m_scanning = false;
+    m_combo->setEnabled(true);
+
+    const bool ok = m_framesTotal >= 8 && m_framesOk * 100 >= m_framesTotal * 60;
+    if (!ok) {
+        m_btnScan->setEnabled(true);
+        m_bar->setValue(0);
+        setStatus(m_framesTotal < 8
+                      ? "⚠ Image de la caméra insuffisante. Réessayez."
+                      : "⚠ Visage non reconnu : placez-vous face à la caméra, dans l'ovale, avec une bonne lumière.",
+                  "#c62828");
+        return;
+    }
+    m_chosenId = m_combo->currentData().toInt();
+    setStatus("✔ Visage reconnu.", "#1b6b2b");
+    m_btnScan->setEnabled(false);
+    QTimer::singleShot(700, this, [this] { stopCamera(); accept(); });
 }

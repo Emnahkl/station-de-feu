@@ -6,6 +6,10 @@
 
 #include <QAbstractTextDocumentLayout>
 #include <QDate>
+#include <QDateEdit>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
 #include <QFile>
 #include <QFileDialog>
 #include <QIcon>
@@ -13,6 +17,7 @@
 #include <QLabel>
 #include <QLinearGradient>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPainter>
@@ -24,6 +29,10 @@
 #include <QTableWidgetItem>
 #include <QTextDocument>
 #include <QTextStream>
+#include <QVBoxLayout>
+#include <QFormLayout>
+#include <QComboBox>
+#include <QPushButton>
 
 // Index des pages du QStackedWidget (même ordre que dans mainwindow.ui)
 enum Page { PageDashboard = 0, PageEmployes, PageVehicules, PageEquipements,
@@ -39,11 +48,15 @@ CampagnesPage::CampagnesPage(QWidget *parent)
     ui->frame_sidebar->hide();
     ui->frame_header->hide();
     ui->statusbar->hide();
+    auto *details = new QPushButton(QString::fromUtf8("Détails avancés…"), this);
+    ui->formLayout_campagne->addRow(details);
+    connect(details, &QPushButton::clicked, this, &CampagnesPage::ouvrirDetailsAvances);
 
     // Contrôles de saisie
     ui->lineEdit_id->setValidator(new QIntValidator(1, 999999, this));
     ui->dateEdit_date->setDate(QDate::currentDate());
     ui->dateEdit_date->setMinimumDate(QDate(2000, 1, 1));
+    m_dateDebut = m_dateFin = ui->dateEdit_date->date();
 
     // Graphique des statistiques (dessiné avec QPainter)
     m_chart = new BarChartWidget(ui->groupBox_graphique);
@@ -58,6 +71,40 @@ CampagnesPage::CampagnesPage(QWidget *parent)
     on_pushButton_actualiserStats_clicked();
 
     naviguer(PageCampagnes, QString::fromUtf8("Gestion des campagnes de sensibilisation"));
+}
+
+void CampagnesPage::setSearch(const QString &text)
+{
+    ui->lineEdit_recherche->setText(text);
+}
+
+void CampagnesPage::ouvrirDetailsAvances()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(QString::fromUtf8("Détails avancés de la campagne"));
+    auto *layout = new QFormLayout(&dialog);
+    auto *description = new QPlainTextEdit(&dialog);
+    description->setPlainText(m_description);
+    auto *debut = new QDateEdit(m_dateDebut.isValid() ? m_dateDebut : ui->dateEdit_date->date(), &dialog);
+    auto *fin = new QDateEdit(m_dateFin.isValid() ? m_dateFin : ui->dateEdit_date->date(), &dialog);
+    debut->setCalendarPopup(true); fin->setCalendarPopup(true);
+    auto *budget = new QDoubleSpinBox(&dialog); budget->setMaximum(100000000); budget->setDecimals(2); budget->setValue(m_budget);
+    auto *statut = new QComboBox(&dialog); statut->addItems({QString::fromUtf8("Planifiée"), QString::fromUtf8("En cours"), QString::fromUtf8("Terminée"), QString::fromUtf8("Annulée")}); statut->setCurrentText(m_statut);
+    auto *score = new QDoubleSpinBox(&dialog); score->setRange(0, 100); score->setDecimals(1); score->setValue(m_scoreImpact);
+    layout->addRow(QString::fromUtf8("Description"), description);
+    layout->addRow(QString::fromUtf8("Date de début"), debut);
+    layout->addRow(QString::fromUtf8("Date de fin"), fin);
+    layout->addRow(QString::fromUtf8("Budget"), budget);
+    layout->addRow(QString::fromUtf8("Statut"), statut);
+    layout->addRow(QString::fromUtf8("Score d'impact"), score);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    if (dialog.exec() == QDialog::Accepted) {
+        m_description = description->toPlainText(); m_dateDebut = debut->date(); m_dateFin = fin->date();
+        m_budget = budget->value(); m_statut = statut->currentText(); m_scoreImpact = score->value();
+    }
 }
 
 CampagnesPage::~CampagnesPage()
@@ -155,6 +202,10 @@ bool CampagnesPage::lireFormulaire(Campagne &c)
     c.setNbParticipants(ui->spinBox_participants->value());
     c.setIdZone(ui->comboBox_zone->currentData().toInt());
     c.setIdEmploye(ui->comboBox_animateur->currentData().toInt());
+    c.setDescription(m_description);
+    c.setDateDebut(m_dateDebut.isValid() ? m_dateDebut : c.getDate());
+    c.setDateFin(m_dateFin.isValid() ? m_dateFin : c.getDate());
+    c.setBudget(m_budget); c.setStatut(m_statut); c.setScoreImpact(m_scoreImpact);
 
     const QString err = c.valider();
     if (!err.isEmpty()) {
@@ -224,6 +275,8 @@ void CampagnesPage::on_pushButton_vider_clicked()
     ui->lineEdit_lieu->clear();
     ui->comboBox_public->setCurrentIndex(0);
     ui->spinBox_participants->setValue(0);
+    m_description.clear(); m_dateDebut = m_dateFin = QDate::currentDate();
+    m_budget = 0; m_statut = QString::fromUtf8("Planifiée"); m_scoreImpact = 0;
     ui->tableView_campagnes->clearSelection();
     ui->lineEdit_titre->setFocus();
 }
@@ -243,6 +296,8 @@ void CampagnesPage::on_tableView_campagnes_clicked(const QModelIndex &index)
     ui->spinBox_participants->setValue(c.getNbParticipants());
     ui->comboBox_zone->setCurrentIndex(ui->comboBox_zone->findData(c.getIdZone()));
     ui->comboBox_animateur->setCurrentIndex(ui->comboBox_animateur->findData(c.getIdEmploye()));
+    m_description = c.getDescription(); m_dateDebut = c.getDateDebut(); m_dateFin = c.getDateFin();
+    m_budget = c.getBudget(); m_statut = c.getStatut(); m_scoreImpact = c.getScoreImpact();
 }
 
 // ---------------------------------------------------------------- Recherche / tri

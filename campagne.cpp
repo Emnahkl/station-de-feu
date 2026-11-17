@@ -13,7 +13,7 @@ Campagne::Campagne(int id, const QString &titre, const QString &theme, const QDa
                    int idZone, int idEmploye)
     : m_id(id), m_titre(titre), m_theme(theme), m_date(date), m_lieu(lieu),
       m_publicCible(publicCible), m_nbParticipants(nbParticipants),
-      m_idZone(idZone), m_idEmploye(idEmploye)
+      m_idZone(idZone), m_idEmploye(idEmploye), m_dateDebut(date), m_dateFin(date)
 {
 }
 
@@ -30,6 +30,11 @@ QString Campagne::valider() const
     if (m_nbParticipants < 0) e << "Le nombre de participants ne peut pas être négatif.";
     if (m_idZone <= 0) e << "Choisissez une zone de couverture.";
     if (m_idEmploye <= 0) e << "Choisissez l'employé animateur.";
+    if (!getDateDebut().isValid() || !getDateFin().isValid() || getDateFin() < getDateDebut())
+        e << "La période de la campagne est invalide.";
+    if (m_description.size() > 1000) e << "La description ne doit pas dépasser 1000 caractères.";
+    if (m_budget < 0) e << "Le budget ne peut pas être négatif.";
+    if (m_scoreImpact < 0 || m_scoreImpact > 100) e << "Le score d'impact doit être compris entre 0 et 100.";
     return e.join("\n");
 }
 
@@ -43,6 +48,12 @@ static void bindAll(QSqlQuery &q, const Campagne &c)
     q.bindValue(":nb", c.getNbParticipants());
     q.bindValue(":zone", c.getIdZone());
     q.bindValue(":emp", c.getIdEmploye());
+    q.bindValue(":description", c.getDescription());
+    q.bindValue(":dateDebut", c.getDateDebut().toString(Qt::ISODate));
+    q.bindValue(":dateFin", c.getDateFin().toString(Qt::ISODate));
+    q.bindValue(":budget", c.getBudget());
+    q.bindValue(":statut", c.getStatut());
+    q.bindValue(":scoreImpact", c.getScoreImpact());
     q.bindValue(":id", c.getId());
 }
 
@@ -54,8 +65,10 @@ bool Campagne::ajouter(QString *erreur)
 
     QSqlQuery q;
     q.prepare("INSERT INTO CAMPAGNE (ID_CAMPAGNE, TITRE, THEME, DATE_CAMPAGNE, LIEU, PUBLIC_CIBLE,"
-              " NB_PARTICIPANTS, ID_ZONE, ID_EMPLOYE)"
-              " VALUES (:id, :titre, :theme, :date, :lieu, :public, :nb, :zone, :emp)");
+              " NB_PARTICIPANTS, ID_ZONE, ID_EMPLOYE, DESCRIPTION, DATE_DEBUT, DATE_FIN, BUDGET, STATUT, SCORE_IMPACT)"
+              " VALUES (:id, :titre, :theme, TO_DATE(:date, 'YYYY-MM-DD'), :lieu, :public, :nb, :zone, :emp,"
+              " :description, TO_DATE(:dateDebut, 'YYYY-MM-DD'), TO_DATE(:dateFin, 'YYYY-MM-DD'),"
+              " :budget, :statut, :scoreImpact)");
     bindAll(q, *this);
     if (!q.exec()) { if (erreur) *erreur = q.lastError().text(); return false; }
     return true;
@@ -68,8 +81,10 @@ bool Campagne::modifier(QString *erreur)
     if (!existe(m_id)) { if (erreur) *erreur = "Aucune campagne avec cet ID."; return false; }
 
     QSqlQuery q;
-    q.prepare("UPDATE CAMPAGNE SET TITRE=:titre, THEME=:theme, DATE_CAMPAGNE=:date, LIEU=:lieu,"
-              " PUBLIC_CIBLE=:public, NB_PARTICIPANTS=:nb, ID_ZONE=:zone, ID_EMPLOYE=:emp"
+    q.prepare("UPDATE CAMPAGNE SET TITRE=:titre, THEME=:theme, DATE_CAMPAGNE=TO_DATE(:date, 'YYYY-MM-DD'), LIEU=:lieu,"
+              " PUBLIC_CIBLE=:public, NB_PARTICIPANTS=:nb, ID_ZONE=:zone, ID_EMPLOYE=:emp, DESCRIPTION=:description,"
+              " DATE_DEBUT=TO_DATE(:dateDebut, 'YYYY-MM-DD'), DATE_FIN=TO_DATE(:dateFin, 'YYYY-MM-DD'),"
+              " BUDGET=:budget, STATUT=:statut, SCORE_IMPACT=:scoreImpact"
               " WHERE ID_CAMPAGNE=:id");
     bindAll(q, *this);
     if (!q.exec()) { if (erreur) *erreur = q.lastError().text(); return false; }
@@ -98,12 +113,19 @@ bool Campagne::charger(int id, Campagne &c)
 {
     QSqlQuery q;
     q.prepare("SELECT ID_CAMPAGNE, TITRE, THEME, DATE_CAMPAGNE, LIEU, PUBLIC_CIBLE,"
-              " NB_PARTICIPANTS, ID_ZONE, ID_EMPLOYE FROM CAMPAGNE WHERE ID_CAMPAGNE = :id");
+              " NB_PARTICIPANTS, ID_ZONE, ID_EMPLOYE, DESCRIPTION, DATE_DEBUT, DATE_FIN, BUDGET, STATUT, SCORE_IMPACT"
+              " FROM CAMPAGNE WHERE ID_CAMPAGNE = :id");
     q.bindValue(":id", id);
     if (!q.exec() || !q.next()) return false;
     c = Campagne(q.value(0).toInt(), q.value(1).toString(), q.value(2).toString(),
-                 QDate::fromString(q.value(3).toString(), Qt::ISODate), q.value(4).toString(),
+                 q.value(3).toDate(), q.value(4).toString(),
                  q.value(5).toString(), q.value(6).toInt(), q.value(7).toInt(), q.value(8).toInt());
+    c.setDescription(q.value(9).toString());
+    c.setDateDebut(q.value(10).toDate());
+    c.setDateFin(q.value(11).toDate());
+    c.setBudget(q.value(12).toDouble());
+    c.setStatut(q.value(13).toString());
+    c.setScoreImpact(q.value(14).toDouble());
     return true;
 }
 
@@ -172,6 +194,13 @@ QList<QPair<QString, int>> Campagne::statistiquesParZone()
                        " GROUP BY z.ID_ZONE, z.NOM ORDER BY COUNT(c.ID_CAMPAGNE) DESC, z.NOM");
 }
 
+QList<QPair<QString, int>> Campagne::statistiques(const QString &critere)
+{
+    if (critere == "THEME") return statistiquesParTheme();
+    if (critere == "ZONE") return statistiquesParZone();
+    return {};
+}
+
 // Score de priorité = interventions sur 12 mois × poids du risque ÷ (1 + campagnes déjà faites sur 12 mois)
 QList<CiblageZone> Campagne::ciblageAutomatique(const QDate &reference)
 {
@@ -185,10 +214,10 @@ QList<CiblageZone> Campagne::ciblageAutomatique(const QDate &reference)
               " (SELECT COUNT(*) FROM CAMPAGNE c WHERE c.ID_ZONE = z.ID_ZONE"
               "   AND c.DATE_CAMPAGNE >= :d2 AND c.DATE_CAMPAGNE < :f2)"
               " FROM ZONE_COUVERTURE z");
-    q.bindValue(":d1", debut);
-    q.bindValue(":f1", fin);
-    q.bindValue(":d2", debut);
-    q.bindValue(":f2", fin);
+    q.bindValue(":d1", QDate::fromString(debut, Qt::ISODate));
+    q.bindValue(":f1", QDate::fromString(fin, Qt::ISODate));
+    q.bindValue(":d2", QDate::fromString(debut, Qt::ISODate));
+    q.bindValue(":f2", QDate::fromString(fin, Qt::ISODate));
 
     QList<CiblageZone> res;
     if (!q.exec()) return res;

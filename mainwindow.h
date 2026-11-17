@@ -10,7 +10,7 @@ class QLineEdit;
 class QStackedWidget;
 class MenuPage;
 class EmployesPage;
-class InterventionsPage;
+class GestionInterventions;
 class VehiculesPage;
 class EquipementsPage;
 class ZonesPage;
@@ -41,7 +41,7 @@ private:
 
     MenuPage *m_menu = nullptr;
     EmployesPage *m_employes = nullptr;
-    InterventionsPage *m_interventions = nullptr;
+    GestionInterventions *m_interventions = nullptr;
     VehiculesPage *m_vehicules = nullptr;
     EquipementsPage *m_equipements = nullptr;
     ZonesPage *m_zones = nullptr;

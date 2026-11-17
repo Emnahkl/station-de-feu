@@ -1,4 +1,4 @@
-QT += core gui widgets sql charts printsupport
+QT += core gui widgets sql charts printsupport multimedia
 CONFIG += c++17
 msvc: QMAKE_CXXFLAGS += /utf-8
 TARGET = FireStationManager
@@ -11,7 +11,12 @@ SOURCES += \
     menupage.cpp \
     rightpanel.cpp \
     employespage.cpp \
-    interventionspage.cpp \
+    employe.cpp \
+    vehicule.cpp \
+    gestioninterventions.cpp \
+    intervention.cpp \
+    affectation.cpp \
+    graphiques.cpp \
     vehiculespage.cpp \
     equipementspage.cpp \
     equipement.cpp \
@@ -32,8 +37,13 @@ HEADERS += \
     rightpanel.h \
     flowlayout.h \
     employespage.h \
+    employe.h \
+    vehicule.h \
     qrgen.h \
-    interventionspage.h \
+    gestioninterventions.h \
+    intervention.h \
+    affectation.h \
+    graphiques.h \
     vehiculespage.h \
     equipementspage.h \
     equipement.h \
@@ -52,7 +62,8 @@ FORMS += \
     vehiculespage.ui \
     equipementspage.ui \
     zonespage.ui \
-    campagnespage.ui
+    campagnespage.ui \
+    gestioninterventions.ui
 
 RESOURCES += resources.qrc
 

@@ -1,10 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
-
-
  <class>EmployesPage</class>
-
-
  <widget class="QMainWindow" name="EmployesPage">
   <property name="geometry">
    <rect>
@@ -67,7 +63,7 @@
        <item>
         <widget class="QLabel" name="labelLogo">
          <property name="text">
-          <string/>
+          <string />
          </property>
          <property name="alignment">
           <enum>Qt::AlignCenter</enum>
@@ -299,7 +295,7 @@
           <item>
            <widget class="QPushButton" name="btnAlerte">
             <property name="text">
-             <string/>
+             <string />
             </property>
             <property name="flat">
              <bool>true</bool>
@@ -309,7 +305,7 @@
           <item>
            <widget class="QPushButton" name="btnTopParam">
             <property name="text">
-             <string/>
+             <string />
             </property>
             <property name="flat">
              <bool>true</bool>
@@ -319,7 +315,7 @@
           <item>
            <widget class="QLabel" name="labelAvatarTop">
             <property name="text">
-             <string/>
+             <string />
             </property>
            </widget>
           </item>
@@ -461,19 +457,9 @@ RAYEN</string>
                  <number>6</number>
                 </property>
                 <item>
-                 <widget class="QPushButton" name="btnQr">
-                  <property name="text">
-                   <string/>
-                  </property>
-                  <property name="flat">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
                  <widget class="QPushButton" name="btnFaceId">
                   <property name="text">
-                   <string/>
+                   <string />
                   </property>
                   <property name="flat">
                    <bool>true</bool>
@@ -481,9 +467,9 @@ RAYEN</string>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QPushButton" name="btnAjouterVolontaire">
+                 <widget class="QPushButton" name="btnExporterPdf">
                   <property name="text">
-                   <string/>
+                   <string />
                   </property>
                   <property name="flat">
                    <bool>true</bool>
@@ -493,7 +479,7 @@ RAYEN</string>
                 <item>
                  <widget class="QPushButton" name="btnAjouterEmploye">
                   <property name="text">
-                   <string/>
+                   <string />
                   </property>
                   <property name="flat">
                    <bool>true</bool>
@@ -503,7 +489,7 @@ RAYEN</string>
                 <item>
                  <widget class="QPushButton" name="btnSupprimerEmploye">
                   <property name="text">
-                   <string/>
+                   <string />
                   </property>
                   <property name="flat">
                    <bool>true</bool>
@@ -511,7 +497,81 @@ RAYEN</string>
                  </widget>
                 </item>
                 <item>
+                 <widget class="QPushButton" name="btnVueSql">
+                  <property name="text">
+                   <string>Vue SQL</string>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolTip">
+                   <string>Afficher la table EMPLOYE brute (QTableView + QSqlQueryModel)</string>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>90</width>
+                    <height>34</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
                  <spacer name="actionSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCount">
+                  <property name="text">
+                   <string />
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QFrame" name="actionFrame2">
+               <layout class="QHBoxLayout" name="actionLayout2">
+                <property name="spacing">
+                 <number>8</number>
+                </property>
+                <property name="leftMargin">
+                 <number>8</number>
+                </property>
+                <property name="topMargin">
+                 <number>6</number>
+                </property>
+                <property name="rightMargin">
+                 <number>8</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>6</number>
+                </property>
+                <item>
+                 <widget class="QPushButton" name="btnStatistiques">
+                  <property name="text">
+                   <string />
+                  </property>
+                  <property name="flat">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnTrier">
+                  <property name="text">
+                   <string />
+                  </property>
+                  <property name="flat">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="actionSpacer2">
                   <property name="orientation">
                    <enum>Qt::Horizontal</enum>
                   </property>
@@ -549,232 +609,298 @@ RAYEN</string>
                  </widget>
                 </item>
                 <item>
-                 <layout class="QHBoxLayout" name="formRow1">
-                  <property name="spacing">
-                   <number>8</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="labelNom">
-                    <property name="text">
-                     <string>Nom :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLineEdit" name="lineEditNom">
-                    <property name="placeholderText">
-                     <string>Nom et prénom</string>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>170</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormGrade">
-                    <property name="text">
-                     <string>Grade :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QComboBox" name="comboFormGrade">
-                    <property name="minimumSize">
-                     <size>
-                      <width>110</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormSpec">
-                    <property name="text">
-                     <string>Spécialité :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QComboBox" name="comboFormSpec">
-                    <property name="minimumSize">
-                     <size>
-                      <width>120</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormStatut">
-                    <property name="text">
-                     <string>Statut :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QComboBox" name="comboFormStatut">
-                    <property name="minimumSize">
-                     <size>
-                      <width>120</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <spacer name="formRow1Spacer">
-                    <property name="orientation">
-                     <enum>Qt::Horizontal</enum>
-                    </property>
-                   </spacer>
-                  </item>
-                 </layout>
+                 <widget class="QWidget" name="formRow1">
+                  <layout class="QHBoxLayout" name="formRow1Layout">
+                   <property name="spacing">
+                    <number>8</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="labelNom">
+                     <property name="text">
+                      <string>Nom :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEditNom">
+                     <property name="placeholderText">
+                      <string>Nom</string>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>130</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="labelPrenom">
+                     <property name="text">
+                      <string>Prénom :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEditPrenom">
+                     <property name="placeholderText">
+                      <string>Prénom</string>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>130</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="labelTel">
+                     <property name="text">
+                      <string>Téléphone :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEditTel">
+                     <property name="placeholderText">
+                      <string>8 à 15 chiffres</string>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>130</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="formRow1Spacer">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </widget>
                 </item>
                 <item>
-                 <layout class="QHBoxLayout" name="formRow2">
-                  <property name="spacing">
-                   <number>8</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="labelFormTarget">
-                    <property name="text">
-                     <string>Employé :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QComboBox" name="comboFormTarget">
-                    <property name="minimumSize">
-                     <size>
-                      <width>200</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormGarde">
-                    <property name="text">
-                     <string>Garde :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QComboBox" name="comboFormGarde">
-                    <property name="minimumSize">
-                     <size>
-                      <width>230</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormCode">
-                    <property name="text">
-                     <string>Code QR :</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLineEdit" name="lineEditCode">
-                    <property name="placeholderText">
-                     <string>ex. FS-AGT-001</string>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>200</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <spacer name="formRow2Spacer">
-                    <property name="orientation">
-                     <enum>Qt::Horizontal</enum>
-                    </property>
-                   </spacer>
-                  </item>
-                 </layout>
+                 <widget class="QWidget" name="formRow2">
+                  <layout class="QHBoxLayout" name="formRow2Layout">
+                   <property name="spacing">
+                    <number>8</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="labelFormGrade">
+                     <property name="text">
+                      <string>Grade :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboFormGrade">
+                     <property name="minimumSize">
+                      <size>
+                       <width>110</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="labelFormSpec">
+                     <property name="text">
+                      <string>Spécialité :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboFormSpec">
+                     <property name="minimumSize">
+                      <size>
+                       <width>120</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="labelFormStatut">
+                     <property name="text">
+                      <string>Statut :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboFormStatut">
+                     <property name="minimumSize">
+                      <size>
+                       <width>120</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="formRow2Spacer">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </widget>
                 </item>
                 <item>
-                 <layout class="QHBoxLayout" name="formInfoRow">
-                  <property name="spacing">
-                   <number>12</number>
+                 <widget class="QWidget" name="formRow3">
+                  <layout class="QHBoxLayout" name="formRow3Layout">
+                   <property name="spacing">
+                    <number>8</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="labelPhoto">
+                     <property name="text">
+                      <string>Photo :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEditPhoto">
+                     <property name="placeholderText">
+                      <string>Chemin de l'image (facultatif)</string>
+                     </property>
+                     <property name="minimumSize">
+                      <size>
+                       <width>200</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btnFormPhoto">
+                     <property name="text">
+                      <string>Parcourir…</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="formRow3Spacer">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QWidget" name="formRow4">
+                  <layout class="QHBoxLayout" name="formRow4Layout">
+                   <property name="spacing">
+                    <number>8</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="labelFormTarget">
+                     <property name="text">
+                      <string>Employé :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboFormTarget">
+                     <property name="minimumSize">
+                      <size>
+                       <width>260</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="labelFormGarde">
+                     <property name="text">
+                      <string>Garde :</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboFormGarde">
+                     <property name="minimumSize">
+                      <size>
+                       <width>230</width>
+                       <height>30</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="formRow4Spacer">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelFormInfo">
+                  <property name="text">
+                   <string />
                   </property>
-                  <property name="leftMargin">
-                   <number>0</number>
+                  <property name="wordWrap">
+                   <bool>true</bool>
                   </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="labelFormQr">
-                    <property name="text">
-                     <string/>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>96</width>
-                      <height>96</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>96</width>
-                      <height>96</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="labelFormInfo">
-                    <property name="text">
-                     <string/>
-                    </property>
-                    <property name="wordWrap">
-                     <bool>true</bool>
-                    </property>
-                    <property name="textInteractionFlags">
-                     <set>Qt::NoTextInteraction</set>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
+                 </widget>
                 </item>
                 <item>
                  <layout class="QHBoxLayout" name="formBtnRow">
@@ -820,7 +946,17 @@ RAYEN</string>
               </widget>
              </item>
              <item>
-              <widget class="QTableWidget" name="tableEmployees"/>
+              <widget class="QTableWidget" name="tableEmployees" />
+             </item>
+             <item>
+              <widget class="QTableView" name="tableViewSql">
+               <property name="visible">
+                <bool>false</bool>
+               </property>
+               <property name="alternatingRowColors">
+                <bool>true</bool>
+               </property>
+              </widget>
              </item>
             </layout>
            </widget>
@@ -829,17 +965,17 @@ RAYEN</string>
            <widget class="QWidget" name="rightColumn">
             <property name="minimumSize">
              <size>
-              <width>330</width>
+              <width>360</width>
               <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>330</width>
+              <width>360</width>
               <height>16777215</height>
              </size>
             </property>
-            <layout class="QVBoxLayout" name="rightLayout">
+            <layout class="QVBoxLayout" name="rightLayout" stretch="3,2">
              <property name="spacing">
               <number>10</number>
              </property>
@@ -914,6 +1050,28 @@ RAYEN</string>
                     </item>
                    </layout>
                   </widget>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>200</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnCalendrier">
+                  <property name="text">
+                   <string>📅  Calendrier / Planning de l'employé</string>
+                  </property>
+                  <property name="toolTip">
+                   <string>Sélectionnez un employé dans le tableau puis ouvrez son calendrier de travail</string>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>34</height>
+                   </size>
+                  </property>
                  </widget>
                 </item>
                 <item>
@@ -1048,7 +1206,7 @@ RAYEN</string>
                   <property name="maximumSize">
                    <size>
                     <width>16777215</width>
-                    <height>10</height>
+                    <height>14</height>
                    </size>
                   </property>
                  </widget>
@@ -1064,7 +1222,7 @@ RAYEN</string>
                   <property name="maximumSize">
                    <size>
                     <width>16777215</width>
-                    <height>10</height>
+                    <height>14</height>
                    </size>
                   </property>
                  </widget>
@@ -1080,7 +1238,7 @@ RAYEN</string>
                   <property name="maximumSize">
                    <size>
                     <width>16777215</width>
-                    <height>10</height>
+                    <height>14</height>
                    </size>
                   </property>
                  </widget>
@@ -1117,7 +1275,7 @@ RAYEN</string>
                     <property name="maximumSize">
                      <size>
                       <width>16777215</width>
-                      <height>8</height>
+                      <height>12</height>
                      </size>
                     </property>
                    </widget>
@@ -1156,7 +1314,7 @@ RAYEN</string>
                     <property name="maximumSize">
                      <size>
                       <width>16777215</width>
-                      <height>8</height>
+                      <height>12</height>
                      </size>
                     </property>
                    </widget>
@@ -1201,134 +1359,13 @@ RAYEN</string>
                   <property name="text">
                    <string>Générer Planning</string>
                   </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-             <item>
-              <widget class="QFrame" name="commFrame">
-               <layout class="QVBoxLayout" name="commLayout">
-                <property name="spacing">
-                 <number>6</number>
-                </property>
-                <property name="leftMargin">
-                 <number>10</number>
-                </property>
-                <property name="topMargin">
-                 <number>10</number>
-                </property>
-                <property name="rightMargin">
-                 <number>10</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>10</number>
-                </property>
-                <item>
-                 <widget class="QLabel" name="labelCommTitle">
-                  <property name="text">
-                   <string>Communication Directe</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QLabel" name="labelEmail">
-                  <property name="text">
-                   <string>Email (Sujet, Corps, Liste)</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <layout class="QHBoxLayout" name="emailRow">
-                  <property name="spacing">
-                   <number>6</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLineEdit" name="lineEditEmail">
-                    <property name="placeholderText">
-                     <string>Email</string>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>30</height>
-                     </size>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="btnEnvoyerEmail">
-                    <property name="text">
-                     <string>Envoyer</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </item>
-                <item>
-                 <widget class="QLabel" name="labelSms">
-                  <property name="text">
-                   <string>SMS/WhatsApp (Message, Numéros)</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QLineEdit" name="lineEditSms">
-                  <property name="placeholderText">
-                   <string>Numéro ; Message</string>
-                  </property>
                   <property name="minimumSize">
                    <size>
                     <width>0</width>
-                    <height>30</height>
+                    <height>38</height>
                    </size>
                   </property>
                  </widget>
-                </item>
-                <item>
-                 <layout class="QHBoxLayout" name="smsRow">
-                  <property name="spacing">
-                   <number>6</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QPushButton" name="btnEnvoyerSms">
-                    <property name="text">
-                     <string>Envoyer</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="btnEnvoyerWhats">
-                    <property name="text">
-                     <string>Envoyer</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
                 </item>
                </layout>
               </widget>
@@ -1345,8 +1382,6 @@ RAYEN</string>
    </layout>
   </widget>
  </widget>
-
-
- <resources/>
- <connections/>
+ <resources />
+ <connections />
 </ui>

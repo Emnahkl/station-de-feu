@@ -2,12 +2,14 @@
 #define CAMPAGNESPAGE_H
 
 #include <QImage>
+#include <QDate>
 #include <QMainWindow>
 #include <QModelIndex>
 
 class QSqlQueryModel;
 class BarChartWidget;
 class Campagne;
+class QPlainTextEdit;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class CampagnesPage; }
@@ -20,6 +22,7 @@ class CampagnesPage : public QMainWindow
 public:
     explicit CampagnesPage(QWidget *parent = nullptr);
     ~CampagnesPage();
+    void setSearch(const QString &text);
 
 private slots:
     // Navigation (QStackedWidget)
@@ -55,6 +58,7 @@ private slots:
     void on_pushButton_evaluerImpact_clicked();
     void on_pushButton_genererAffiche_clicked();
     void on_pushButton_enregistrerAffiche_clicked();
+    void ouvrirDetailsAvances();
 
 private:
     void naviguer(int index, const QString &titre);
@@ -69,6 +73,12 @@ private:
     QSqlQueryModel *m_model = nullptr;
     BarChartWidget *m_chart = nullptr;
     QImage m_affiche;
+    QString m_description;
+    QDate m_dateDebut;
+    QDate m_dateFin;
+    double m_budget = 0.0;
+    QString m_statut = QString::fromUtf8("Planifiée");
+    double m_scoreImpact = 0.0;
 };
 
 #endif // CAMPAGNESPAGE_H
