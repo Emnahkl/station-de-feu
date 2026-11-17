@@ -1,0 +1,13 @@
+debug/main.o
+debug/mainwindow.o
+debug/vehiclewindow.o
+debug/campaignwindow.o
+debug/connection.o
+debug/campagne.o
+debug/barchartwidget.o
+debug/qrc_vehicle_resources.o
+debug/qrc_campaign_resources.o
+debug/moc_mainwindow.o
+debug/moc_vehiclewindow.o
+debug/moc_campaignwindow.o
+debug/moc_barchartwidget.o

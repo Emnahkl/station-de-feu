@@ -5,6 +5,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QBrush>
 #include <QColor>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDateEdit>
 #include <QDateTime>
@@ -27,11 +28,15 @@
 #include <QPolygonF>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScrollArea>
+#include <QSplitter>
 #include <QRegularExpressionValidator>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QStyle>
+#include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QVBoxLayout>
 #include <QTextDocument>
 #include <QTimeEdit>
 #include <QTimer>
@@ -232,6 +237,7 @@ GestionInterventions::GestionInterventions(QWidget *parent)
     connect(ui->btnValiderAffectation, &QPushButton::clicked, this, &GestionInterventions::validerAffectation);
     ui->btnValiderAffectation->setIcon(iconeCoche(Qt::white));
     ui->btnValiderAffectation->setIconSize(QSize(18, 18));
+    creerRessources();
     connect(ui->btnParcours,      &QPushButton::clicked, this, &GestionInterventions::afficherParcours);
     connect(ui->btnPower,         &QPushButton::clicked, this, &GestionInterventions::close);
     connect(ui->btnBandeauOk,     &QPushButton::clicked, this, &GestionInterventions::bandeauValider);
@@ -383,7 +389,7 @@ void GestionInterventions::majBoutons()
 {
     const bool enEdition    = (m_mode != ModeListe);
     const bool confirmation = (m_contexte == CtxSuppression);
-    const int  page         = ui->stackedMain->currentIndex();   // 0 liste, 1 statistiques, 2 parcours, 3 affectation
+    const int  page         = ui->stackedMain->currentIndex();   // 0 liste, 1 statistiques, 2 parcours, 3 affectation, 4 ressources
     const bool liste        = (page == 0);
     const bool libre        = !enEdition && !confirmation;
     const bool selection    = liste && idCourant() >= 0;
@@ -394,6 +400,10 @@ void GestionInterventions::majBoutons()
     ui->btnSupprimer->setEnabled(libre && selection);
     ui->btnAffectation->setEnabled(libre && (selection || page == 3));
     ui->btnParcours->setEnabled(libre);
+    if (m_btnRessources) {
+        m_btnRessources->setEnabled(libre);
+        definirPropriete(m_btnRessources, "actif", page == 4);
+    }
     ui->btnStats->setEnabled(libre);
     ui->btnExportPdf->setEnabled(libre && liste);
     ui->btnRetourListe->setEnabled(libre);
@@ -517,6 +527,8 @@ void GestionInterventions::mettreAJourCartes()
         mettreAJourStats(toutes);
     else if (ui->stackedMain->currentIndex() == 2)
         mettreAJourParcours();
+    else if (ui->stackedMain->currentIndex() == 4)
+        remplirRessources();
 }
 
 void GestionInterventions::mettreAJourBoutonsTri()
@@ -598,7 +610,7 @@ void GestionInterventions::demarrerEdition(Mode mode, const Intervention &modele
     e.date = new QDateEdit;
     e.date->setDisplayFormat("dd/MM/yyyy");
     e.date->setCalendarPopup(true);
-    e.date->setDateRange(Intervention::dateMinimale(), QDate::currentDate());   // ni futur, ni avant 2026
+    e.date->setMinimumDate(Intervention::dateMinimale());   // futur autorisé, pas avant 2026
 
     e.heure = new QTimeEdit;
     e.heure->setDisplayFormat("HH:mm");
@@ -749,7 +761,19 @@ bool GestionInterventions::verifierEdition(bool strict)
         const QSignalBlocker blocage(e.statut);
         e.statut->setCurrentText("Terminée");
     }
-    e.statut->setEnabled(!passee);
+    // Date future => statut forcé à « En cours » (et verrouillé)
+    const bool future = Intervention::estFuture(date);
+    if (future && e.statut->currentText() != "En cours") {
+        const QSignalBlocker blocage(e.statut);
+        e.statut->setCurrentText("En cours");
+    }
+    // Ajout d'une intervention du jour : « En attente » tant qu'aucune affectation n'est validée
+    const bool nouvelleDuJour = (m_mode == ModeAjout) && !passee && !future;
+    if (nouvelleDuJour && e.statut->currentText() != "En attente") {
+        const QSignalBlocker blocage(e.statut);
+        e.statut->setCurrentText("En attente");
+    }
+    e.statut->setEnabled(!passee && !future && !nouvelleDuJour);
 
     const bool vT = !eT.isEmpty();
     const bool vA = !eA.isEmpty() && (strict || (m_touches & ChAdresse));
@@ -776,6 +800,10 @@ bool GestionInterventions::verifierEdition(bool strict)
                           "<b>Échap</b> pour annuler.");
         if (passee)
             aide += "<br>" + tr("Date passée : le statut est automatiquement « Terminée ».");
+        if (future)
+            aide += "<br>" + tr("Date future : le statut est automatiquement « En cours ».");
+        if (nouvelleDuJour)
+            aide += "<br>" + tr("Statut « En attente » : il passe à « En cours » quand l'affectation est validée.");
         bandeau("<b>" + titre.toHtmlEscaped() + "</b><br>" + aide, EtatEdition,
                 tr("Enregistrer"), tr("Annuler"), true);
     } else {
@@ -1217,36 +1245,82 @@ QString formatDuree(int minutes)
 }
 } // namespace
 
+// Score de priorité (0 à 100) = gravité (15 / 30 / 45 / 60) + attente (1 point / 6 min, max 25)
+//                               + risque de la zone (3 / 8 / 15).
+// Il est recalculé à CHAQUE étape avec l'heure d'arrivée estimée : une intervention qui attend
+// remonte dans l'ordre. Petit bonus (+6) si elle est dans la zone où l'équipe se trouve déjà.
+// Retard = arrivée prévue - heure du signalement, au-delà d'un seuil selon la gravité.
+namespace {
+int pointsGravite(const QString &g)
+{
+    switch (rangGravite(g)) { case 4: return 60; case 3: return 45; case 2: return 30; default: return 15; }
+}
+int pointsRisque(const QString &r)
+{
+    const QString x = r.trimmed().toLower();
+    if (x.contains("lev")) return 15;          // Eleve / Élevé
+    if (x.contains("moy")) return 8;
+    return 3;
+}
+int seuilRetard(const QString &g)              // minutes tolérées entre le signalement et l'arrivée
+{
+    switch (rangGravite(g)) { case 4: return 10; case 3: return 15; case 2: return 30; default: return 60; }
+}
+QString heureOuDate(const QDateTime &d)
+{
+    return d.date() == QDate::currentDate() ? d.toString("HH:mm") : d.toString("dd/MM HH:mm");
+}
+} // namespace
+
 int GestionInterventions::mettreAJourParcours()
 {
-    QVector<Intervention> aTraiter;
+    QVector<Intervention> restantes;
     const QVector<Intervention> toutes = Intervention::afficher();
     for (int i = 0; i < toutes.size(); ++i)
         if (toutes[i].getStatut() != "Terminée")
-            aTraiter.push_back(toutes[i]);
-
-    std::stable_sort(aTraiter.begin(), aTraiter.end(), [](const Intervention &a, const Intervention &b) {
-        if (rangGravite(a.getGravite()) != rangGravite(b.getGravite()))
-            return rangGravite(a.getGravite()) > rangGravite(b.getGravite());
-        if (a.getIdZone() != b.getIdZone())
-            return a.getIdZone() < b.getIdZone();
-        return a.dateHeure() < b.dateHeure();
-    });
+            restantes.push_back(toutes[i]);
 
     const QMap<int, int> temps = Intervention::tempsZones();
+    const QMap<int, QString> risques = Intervention::risquesZones();
     const QDateTime maintenant = QDateTime::currentDateTime();
     QDateTime curseur = maintenant;               // départ de la caserne : maintenant
-    int zonePrecedente = -1, totalMinutes = 0;
+    int zonePrecedente = -1, totalMinutes = 0, nbRetards = 0;
+    QVector<EtapeItineraire> etapes;
 
     QTableWidget *t = ui->tableParcours;
+    QStringList entetes;
+    entetes << tr("Ordre") << tr("N°") << tr("Type") << tr("Adresse") << tr("Zone") << tr("Gravité")
+            << tr("Priorité") << tr("En attente depuis") << tr("Trajet") << tr("Départ conseillé")
+            << tr("Arrivée prévue") << tr("Fin prévue") << tr("Retard");
+    t->setColumnCount(entetes.size());
+    t->setHorizontalHeaderLabels(entetes);
     QHeaderView *entete = t->horizontalHeader();
     entete->setSectionResizeMode(QHeaderView::ResizeToContents);
     entete->setSectionResizeMode(3, QHeaderView::Stretch);               // Adresse
     entete->setStretchLastSection(false);
     t->setRowCount(0);
-    t->setRowCount(aTraiter.size());
-    for (int r = 0; r < aTraiter.size(); ++r) {
-        const Intervention &it = aTraiter[r];
+    t->setRowCount(restantes.size());
+
+    int r = 0;
+    while (!restantes.isEmpty()) {
+        // choix de la prochaine étape : meilleur score de priorité à l'heure d'arrivée estimée
+        int meilleur = 0, meilleurScore = -1, scoreRetenu = 0;
+        for (int i = 0; i < restantes.size(); ++i) {
+            const Intervention &c = restantes[i];
+            const int tr_ = (c.getIdZone() == zonePrecedente) ? 3 : temps.value(c.getIdZone(), 10);
+            const QDateTime arriveeEst = curseur.addSecs(tr_ * 60);
+            const int attenteEst = qMax(0, int(c.dateHeure().secsTo(arriveeEst) / 60));
+            const int score = qMin(100, pointsGravite(c.getGravite()) + qMin(25, attenteEst / 6)
+                                        + pointsRisque(risques.value(c.getIdZone())));
+            const int choix = score + (c.getIdZone() == zonePrecedente ? 6 : 0);
+            if (choix > meilleurScore
+                || (choix == meilleurScore && c.dateHeure() < restantes[meilleur].dateHeure())) {
+                meilleurScore = choix; meilleur = i; scoreRetenu = score;
+            }
+        }
+        const Intervention it = restantes[meilleur];
+        restantes.remove(meilleur);
+
         const int trajet = (it.getIdZone() == zonePrecedente) ? 3 : temps.value(it.getIdZone(), 10);
         const int surPlace = dureeSurPlace(it.getGravite());
         curseur = curseur.addSecs(trajet * 60);
@@ -1255,38 +1329,101 @@ int GestionInterventions::mettreAJourParcours()
         totalMinutes += trajet + surPlace;
         zonePrecedente = it.getIdZone();
         const int attente = qMax(0, int(it.dateHeure().secsTo(maintenant) / 60));
+        const int retard = int(it.dateHeure().secsTo(arrivee) / 60);            // minutes après le signalement
+        const bool enRetard = retard > seuilRetard(it.getGravite());
+        if (enRetard) ++nbRetards;
 
+        const QString texteRetard = enRetard
+            ? QString::fromUtf8("\xE2\x9A\xA0 +%1 min").arg(retard - seuilRetard(it.getGravite()))
+            : QString::fromUtf8("\xE2\x9C\x94 ") + tr("à l'heure");
+        {
+            EtapeItineraire e;
+            e.ordre = r + 1;  e.idIntervention = it.getId();  e.titre = it.getType();
+            e.adresse = it.getAdresse();  e.zone = libelleZone(it.getIdZone());  e.gravite = it.getGravite();
+            e.couleur = couleurGravite(it.getGravite());
+            e.arrivee = heureOuDate(arrivee);  e.fin = heureOuDate(curseur);
+            e.trajetMin = trajet;  e.surPlaceMin = surPlace;  e.retard = enRetard;
+            e.texteRetard = enRetard ? tr("+%1 min de retard").arg(retard - seuilRetard(it.getGravite()))
+                                     : tr("à l'heure");
+            etapes.push_back(e);
+        }
+        // Départ conseillé = heure du signalement - trajet ; si c'est déjà passé : partir tout de suite
+        const QDateTime departConseille = it.dateHeure().addSecs(-trajet * 60);
+        const bool departImmediat = departConseille <= maintenant;
         QStringList cellules;
         cellules << QString::number(r + 1) << QString::number(it.getId()) << it.getType() << it.getAdresse()
                  << libelleZone(it.getIdZone())
                  << QString::fromUtf8("\xE2\x97\x8F ") + it.getGravite()
+                 << QString("%1 / 100").arg(scoreRetenu)
                  << formatDuree(attente) << formatDuree(trajet)
-                 << arrivee.toString("HH:mm") << curseur.toString("HH:mm");
+                 << (departImmediat ? tr("tout de suite") : heureOuDate(departConseille))
+                 << heureOuDate(arrivee) << heureOuDate(curseur) << texteRetard;
         for (int c = 0; c < cellules.size(); ++c) {
             QTableWidgetItem *item = new QTableWidgetItem(cellules[c]);
             item->setTextAlignment(Qt::AlignVCenter | (c == 0 ? Qt::AlignHCenter : Qt::AlignLeft));
-            if (c == 0 || c == 5 || c == 9 || c == 8) {
+            if (c == 0 || c == 5 || c == 6 || c == 9 || c == 10 || c == 11 || c == 12) {
                 QFont f = item->font();
                 f.setBold(true);
                 item->setFont(f);
             }
             if (c == 5)
                 item->setForeground(QBrush(couleurGravite(it.getGravite())));
+            if (c == 9)
+                item->setForeground(QBrush(departImmediat ? QColor("#d97706") : QColor("#1f2937")));
+            if (c == 12)
+                item->setForeground(QBrush(enRetard ? QColor("#b91c1c") : QColor("#15803d")));
             if (c == 3)
                 item->setToolTip(it.getAdresse());
+            if (c == 6)
+                item->setToolTip(tr("Gravité %1 pts + attente + risque de la zone").arg(pointsGravite(it.getGravite())));
+            if (c == 9)
+                item->setToolTip(tr("Heure du signalement moins le trajet (%1 min) : pour arriver à l'heure déclarée.").arg(trajet));
+            if (c == 12)
+                item->setToolTip(tr("Seuil toléré : %1 min après le signalement (gravité %2)")
+                                     .arg(seuilRetard(it.getGravite())).arg(it.getGravite()));
+            if (enRetard)
+                item->setBackground(QBrush(QColor("#fee2e2")));
             t->setItem(r, c, item);
         }
+        ++r;
     }
 
-    ui->lblParcoursResume->setText(aTraiter.isEmpty()
+    if (!m_itineraire) {
+        // itinéraire à gauche (défilable), tableau à droite ; un séparateur permet de les redimensionner
+        m_itineraire = new ItineraireWidget;
+        QScrollArea *zone = new QScrollArea;
+        zone->setWidget(m_itineraire);
+        zone->setWidgetResizable(true);
+        zone->setFrameShape(QFrame::NoFrame);
+        QSplitter *separateur = new QSplitter(Qt::Horizontal);
+        const int idx = ui->parcoursLayout->indexOf(ui->parcoursFrame);
+        ui->parcoursLayout->removeWidget(ui->parcoursFrame);
+        separateur->addWidget(zone);
+        separateur->addWidget(ui->parcoursFrame);
+        separateur->setStretchFactor(0, 0);
+        separateur->setStretchFactor(1, 1);
+        separateur->setSizes(QList<int>() << 380 << 900);
+        ui->parcoursLayout->insertWidget(idx, separateur, 1);
+    }
+    m_itineraire->definir(etapes, maintenant.toString("HH:mm"), heureOuDate(curseur));
+
+    const int nb = t->rowCount();
+    ui->lblParcoursResume->setText(nb == 0
         ? tr("Aucune intervention en cours ou en attente.")
-        : tr("%1 intervention(s) à traiter  ·  départ de la caserne à %2  ·  durée totale estimée : %3  ·  fin prévue à %4")
-              .arg(aTraiter.size()).arg(maintenant.toString("HH:mm")).arg(formatDuree(totalMinutes))
-              .arg(curseur.toString("HH:mm")));
-    ui->lblParcoursInfo->setText(tr("Ordre recommandé : gravité décroissante (Critique d'abord), puis regroupement par zone "
-                                    "pour limiter les trajets, puis la plus ancienne en premier. Trajet = temps d'intervention "
-                                    "de la zone (3 min dans la même zone) ; durée sur place : 20 / 30 / 45 / 60 min selon la gravité."));
-    return aTraiter.size();
+        : tr("%1 intervention(s) à traiter  ·  départ de la caserne à %2  ·  durée totale estimée : %3  ·  fin prévue à %4  ·  %5")
+              .arg(nb).arg(maintenant.toString("HH:mm")).arg(formatDuree(totalMinutes))
+              .arg(heureOuDate(curseur))
+              .arg(nbRetards == 0 ? tr("aucun retard prévu")
+                                  : tr("%1 arrivée(s) en retard (lignes rouges)").arg(nbRetards)));
+    ui->lblParcoursInfo->setTextFormat(Qt::RichText);
+    ui->lblParcoursInfo->setText(
+        "<b>" + tr("Priorité (0-100)") + "</b> : " + tr("gravité (15 / 30 / 45 / 60) + attente (1 point par 6 min, max 25) + risque de la zone (3 / 8 / 15). "
+                                                  "Le +6 pour la même zone sert seulement à choisir l'ordre, il n'est pas compté dans le score.") + "<br>"
+        "<b>" + tr("Trajet") + "</b> : " + tr("temps d'intervention de la zone (3 min si on reste dans la même zone).") + "<br>"
+        "<b>" + tr("Durée sur place") + "</b> : " + tr("20 / 30 / 45 / 60 min selon la gravité.") + "<br>"
+        "<b>" + tr("Retard") + "</b> : " + tr("arrivée prévue moins heure du signalement, au-delà de 10 / 15 / 30 / 60 min "
+                                              "(Critique / Élevée / Moyenne / Faible)."));
+    return nb;
 }
 
 void GestionInterventions::afficherParcours()
@@ -1336,26 +1473,41 @@ void GestionInterventions::afficherAffectation()
     m_proposition = Affectation::proposer(cible);
     m_idAffectation = id;
     if (m_proposition.vehicules.isEmpty() || m_proposition.employes.isEmpty()) {
-        message(tr("Affectation impossible : ") + m_proposition.avertissements.join(" "), EtatErreur);
+        QString raison = m_proposition.avertissements.join(" ");
+        if (!m_proposition.planB.isEmpty())
+            raison += " " + tr("Plan B : ") + m_proposition.planB.join(" ");
+        message(tr("Affectation impossible : ") + raison, EtatErreur);
         return;
     }
 
     // ---- tableau : chaque véhicule suivi de son équipe, puis les équipements
     QTableWidget *t = ui->tableAffectation;
+    t->setColumnCount(5);
+    t->setHorizontalHeaderLabels(QStringList() << tr("Ressource") << tr("Désignation") << tr("Détail")
+                                               << tr("Véhicule") << tr("Pertinence"));
     QHeaderView *entete = t->horizontalHeader();
     entete->setSectionResizeMode(QHeaderView::ResizeToContents);
     entete->setSectionResizeMode(1, QHeaderView::Stretch);
     entete->setStretchLastSection(false);
     t->setRowCount(0);
-    auto ligne = [t](const QString &a, const QString &b, const QString &c2, const QString &d, bool gras, const QColor &fond) {
+    // Pertinence : barre de 10 cases + pourcentage (vert >= 75, orange >= 50, rouge sinon)
+    auto barre = [](int score) {
+        const int n = qBound(0, (score + 5) / 10, 10);
+        return QString(n, QChar(0x2588)) + QString(10 - n, QChar(0x2591)) + QString("  %1 %").arg(score);
+    };
+    auto ligne = [t, &barre](const QString &a, const QString &b, const QString &c2, const QString &d,
+                             int score, bool gras, const QColor &fond) {
         const int r = t->rowCount();
         t->insertRow(r);
-        const QString v[4] = { a, b, c2, d };
-        for (int k = 0; k < 4; ++k) {
+        const QString v[5] = { a, b, c2, d, score >= 0 ? barre(score) : QString() };
+        for (int k = 0; k < 5; ++k) {
             QTableWidgetItem *item = new QTableWidgetItem(v[k]);
             item->setTextAlignment(Qt::AlignVCenter | Qt::AlignLeft);
             if (gras) { QFont f = item->font(); f.setBold(true); item->setFont(f); }
             item->setBackground(QBrush(fond));
+            if (k == 4 && score >= 0)
+                item->setForeground(QBrush(score >= 75 ? QColor("#15803d")
+                                           : score >= 50 ? QColor("#d97706") : QColor("#b91c1c")));
             t->setItem(r, k, item);
         }
     };
@@ -1363,21 +1515,25 @@ void GestionInterventions::afficherAffectation()
     for (int v = 0; v < m_proposition.vehicules.size(); ++v) {
         const PropositionAffectation::Vehicule &veh = m_proposition.vehicules[v];
         ligne(tr("Véhicule"), veh.immat + " – " + veh.type,
-              (veh.modele.isEmpty() ? QString() : veh.modele + " · ") + tr("état : ") + (veh.etat.isEmpty() ? "—" : veh.etat),
-              "—", true, fondVehicule);
+              (veh.modele.isEmpty() ? QString() : veh.modele + " · ") + tr("état : ") + (veh.etat.isEmpty() ? "—" : veh.etat)
+                  + (veh.note.isEmpty() ? QString() : " · " + veh.note),
+              "—", veh.score, true, fondVehicule);
         for (int e = 0; e < m_proposition.employes.size(); ++e) {
             const PropositionAffectation::Employe &emp = m_proposition.employes[e];
             if (emp.immat != veh.immat)
                 continue;
             ligne(emp.chef ? tr("Chef d'équipe") : tr("Employé"), emp.nom,
-                  emp.grade + (emp.specialite.isEmpty() ? QString() : " · " + emp.specialite), emp.immat, emp.chef, fondNormal);
+                  emp.grade + (emp.specialite.isEmpty() ? QString() : " · " + emp.specialite)
+                      + (emp.charge > 0 ? " · " + tr("%1 mission(s) récente(s)").arg(emp.charge) : " · " + tr("reposé")),
+                  emp.immat, emp.score, emp.chef, fondNormal);
         }
     }
     for (int q = 0; q < m_proposition.equipements.size(); ++q) {
         const PropositionAffectation::Equipement &eq = m_proposition.equipements[q];
         ligne(tr("Équipement"), eq.categorie,
-              tr("%1 disponible(s)").arg(eq.disponible) + (eq.etat.isEmpty() ? QString() : " · " + eq.etat),
-              eq.immat.isEmpty() ? tr("Dépôt (hors véhicule)") : eq.immat, false, fondEquip);
+              tr("%1 disponible(s)").arg(eq.disponible) + (eq.etat.isEmpty() ? QString() : " · " + eq.etat)
+                  + (eq.note.isEmpty() ? QString() : " · " + eq.note),
+              eq.immat.isEmpty() ? tr("Dépôt (hors véhicule)") : eq.immat, eq.score, false, fondEquip);
     }
 
     ui->lblAffectationTitle->setText(tr("Affectation automatique – intervention n° %1").arg(id));
@@ -1386,6 +1542,9 @@ void GestionInterventions::afficherAffectation()
         .arg(cible.getType().toHtmlEscaped(), cible.getGravite().toHtmlEscaped())
         .arg(m_proposition.besoinVehicules).arg(m_proposition.besoinEmployes).arg(m_proposition.besoinEquipements)
         .arg(m_proposition.vehicules.size()).arg(m_proposition.employes.size()).arg(m_proposition.equipements.size());
+    resume += "<br>" + tr("Pertinence globale : <b>%1 %</b>").arg(m_proposition.scoreGlobal);
+    if (!m_proposition.equilibre.isEmpty())
+        resume += "  ·  " + m_proposition.equilibre.toHtmlEscaped();
     ui->lblAffectationResume->setTextFormat(Qt::RichText);
     ui->lblAffectationResume->setText(resume);
 
@@ -1394,6 +1553,8 @@ void GestionInterventions::afficherAffectation()
     if (deja[0] + deja[2] > 0)
         avert.prepend(tr("Cette intervention a déjà une affectation (%1 véhicule(s), %2 employé(s), %3 équipement(s)) : "
                          "elle sera remplacée si vous validez.").arg(deja[1]).arg(deja[0]).arg(deja[2]));
+    for (int i = 0; i < m_proposition.planB.size(); ++i)
+        avert << tr("Plan B : ") + m_proposition.planB[i];
     ui->lblAffectationAvert->setText(avert.join("\n"));
     ui->lblAffectationAvert->setVisible(!avert.isEmpty());
 
@@ -1413,9 +1574,138 @@ void GestionInterventions::validerAffectation()
     }
     const PropositionAffectation p = m_proposition;
     m_idAffectation = -1;
+    Intervention::demarrerSiEnAttente(id);       // une intervention affectée passe de « En attente » à « En cours »
+    rafraichir();
     montrerListe();
-    message(tr("Affectation enregistrée pour l'intervention n° %1 : %2 véhicule(s), %3 employé(s), %4 équipement(s).")
+    message(tr("Affectation enregistrée pour l'intervention n° %1 : %2 véhicule(s), %3 employé(s), %4 équipement(s). "
+               "Statut : « En cours » (si elle était en attente).")
                 .arg(id).arg(p.vehicules.size()).arg(p.employes.size()).arg(p.equipements.size()), EtatOk);
+}
+
+// ------------------------------------------------------------ Ressources disponibles
+// Page ajoutée par le code (pas dans le .ui) : liste des employés, véhicules et équipements avec
+// leur disponibilité (libre / occupé par l'intervention n° X / indisponible + raison).
+void GestionInterventions::creerRessources()
+{
+    m_btnRessources = new QPushButton(tr("Ressources disponibles"), ui->actionsFrame);
+    m_btnRessources->setObjectName("btnRessources");
+    m_btnRessources->setIcon(QIcon(":/icons/equipements.png"));
+    m_btnRessources->setIconSize(QSize(20, 20));
+    m_btnRessources->setCursor(Qt::PointingHandCursor);
+    m_btnRessources->setToolTip(tr("Voir quels employés, véhicules et équipements sont libres"));
+    ui->actionsRow1->insertWidget(ui->actionsRow1->indexOf(ui->btnAffectation), m_btnRessources);
+    connect(m_btnRessources, &QPushButton::clicked, this, &GestionInterventions::afficherRessources);
+
+    // Bouton « ? » : affiche / cache l'explication du calcul du parcours (cachée par défaut)
+    QPushButton *aide = new QPushButton(tr("?  Comment c'est calculé"));
+    aide->setCursor(Qt::PointingHandCursor);
+    aide->setCheckable(true);
+    aide->setStyleSheet("QPushButton { background: white; color: #1f2d3d; border: 1px solid #cfd4da; border-radius: 6px; "
+                        "padding: 8px 16px; font-weight: 600; min-height: 20px; } "
+                        "QPushButton:hover { background: #f3f4f6; } QPushButton:checked { background: #e5e7eb; }");
+    ui->parcoursHeader->insertWidget(ui->parcoursHeader->indexOf(ui->btnRetourParcours), aide);
+    ui->lblParcoursInfo->setVisible(false);
+    connect(aide, &QPushButton::toggled, ui->lblParcoursInfo, &QLabel::setVisible);
+
+    m_pageRessources = new QWidget;
+    QVBoxLayout *vl = new QVBoxLayout(m_pageRessources);
+    vl->setContentsMargins(0, 0, 0, 0);
+    vl->setSpacing(8);
+    QHBoxLayout *haut = new QHBoxLayout;
+    QLabel *titre = new QLabel(tr("Ressources disponibles"));
+    titre->setObjectName("lblParcoursTitle");                 // même style que les autres titres de page
+    m_chkLibres = new QCheckBox(tr("Libres seulement"));
+    QPushButton *retour = new QPushButton(QString::fromUtf8("\xE2\x86\x90  ") + tr("Retour à la liste"));
+    retour->setObjectName("btnRetourParcours");               // même style que les autres boutons « Retour »
+    retour->setCursor(Qt::PointingHandCursor);
+    haut->addWidget(titre);
+    haut->addStretch(1);
+    haut->addWidget(m_chkLibres);
+    haut->addWidget(retour);
+    vl->addLayout(haut);
+    m_lblRessourcesResume = new QLabel;
+    m_lblRessourcesResume->setObjectName("lblParcoursResume");
+    m_lblRessourcesResume->setWordWrap(true);
+    vl->addWidget(m_lblRessourcesResume);
+
+    m_tableRessources = new QTableWidget;
+    m_tableRessources->setColumnCount(4);
+    m_tableRessources->setHorizontalHeaderLabels(QStringList() << tr("Famille") << tr("Désignation")
+                                                              << tr("Détail") << tr("Disponibilité"));
+    m_tableRessources->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_tableRessources->setSelectionMode(QAbstractItemView::NoSelection);
+    m_tableRessources->setShowGrid(false);
+    m_tableRessources->setFrameShape(QFrame::NoFrame);
+    m_tableRessources->verticalHeader()->setVisible(false);
+    m_tableRessources->verticalHeader()->setDefaultSectionSize(40);
+    vl->addWidget(m_tableRessources, 1);
+
+    ui->stackedMain->addWidget(m_pageRessources);             // index 4
+    connect(retour, &QPushButton::clicked, this, [this]() { montrerListe(); });
+    connect(m_chkLibres, &QCheckBox::toggled, this, [this]() { remplirRessources(); });
+}
+
+void GestionInterventions::remplirRessources()
+{
+    const QVector<RessourceDispo> toutes = Affectation::disponibilites();
+    const bool libresSeulement = m_chkLibres->isChecked();
+    QTableWidget *t = m_tableRessources;
+    QHeaderView *entete = t->horizontalHeader();
+    entete->setSectionResizeMode(QHeaderView::ResizeToContents);
+    entete->setSectionResizeMode(1, QHeaderView::Stretch);
+    entete->setStretchLastSection(false);
+    t->setRowCount(0);
+
+    QMap<QString, QPair<int, int> > compte;                   // famille -> (libres, total)
+    QStringList ordre;
+    for (int i = 0; i < toutes.size(); ++i) {
+        const RessourceDispo &d = toutes[i];
+        if (!compte.contains(d.genre))
+            ordre << d.genre;
+        compte[d.genre].second++;
+        if (d.libre)
+            compte[d.genre].first++;
+        if (libresSeulement && !d.libre)
+            continue;
+        const int r = t->rowCount();
+        t->insertRow(r);
+        const QString v[4] = { d.genre, d.designation, d.detail,
+                               QString::fromUtf8("\xE2\x97\x8F ") + d.statut };
+        for (int k = 0; k < 4; ++k) {
+            QTableWidgetItem *item = new QTableWidgetItem(v[k]);
+            item->setTextAlignment(Qt::AlignVCenter | Qt::AlignLeft);
+            if (k == 3) {
+                QFont f = item->font();
+                f.setBold(true);
+                item->setFont(f);
+                const bool occupe = d.statut.startsWith(tr("Occupé"));
+                item->setForeground(QBrush(d.libre ? QColor("#15803d") : occupe ? QColor("#d97706") : QColor("#b91c1c")));
+            }
+            t->setItem(r, k, item);
+        }
+    }
+    QStringList parties;
+    for (int i = 0; i < ordre.size(); ++i)
+        parties << tr("%1 : <b>%2 libre(s)</b> sur %3").arg(ordre[i]).arg(compte[ordre[i]].first).arg(compte[ordre[i]].second);
+    m_lblRessourcesResume->setTextFormat(Qt::RichText);
+    m_lblRessourcesResume->setText(parties.isEmpty()
+        ? tr("Aucune ressource trouvée : les tables EMPLOYES, VEHICULES et EQUIPEMENTS sont vides ou n'existent pas encore. ")
+              + Affectation::derniereErreur().toHtmlEscaped()
+        : parties.join("  ·  "));
+}
+
+void GestionInterventions::afficherRessources()
+{
+    if (m_mode != ModeListe || m_contexte == CtxSuppression)
+        return;
+    if (ui->stackedMain->currentIndex() == 4) {      // 2e clic : retour à la liste
+        montrerListe();
+        return;
+    }
+    masquerBandeau();
+    remplirRessources();
+    ui->stackedMain->setCurrentIndex(4);
+    majBoutons();
 }
 
 void GestionInterventions::fonctionnaliteAVenir()

@@ -109,6 +109,20 @@ int rangGrade(const QString &grade)
     return 5;
 }
 
+int rangGravite(const QString &g)
+{
+    if (g == "Critique") return 4;
+    if (g == "Élevée")   return 3;
+    if (g == "Moyenne")  return 2;
+    return 1;
+}
+
+// Ressource occupée par une AUTRE intervention non terminée (sert au plan B : on ne l'affecte pas
+// automatiquement, on la propose seulement si cette autre intervention est moins grave).
+struct Occupe { QString ressource; int idInter; QString gravite; };
+
+QVector<Occupe> occupees(const QString &sql, int idIntervention);
+
 QSet<QString> chaines(const QString &sql, int idIntervention)
 {
     QSet<QString> s;
@@ -120,6 +134,25 @@ QSet<QString> chaines(const QString &sql, int idIntervention)
         while (q.next())
             s.insert(q.value(0).toString());
     return s;
+}
+
+QVector<Occupe> occupees(const QString &sql, int idIntervention)
+{
+    QVector<Occupe> r;
+    QSqlQuery q;
+    q.prepare(sql);
+    q.bindValue(":id", idIntervention);
+    q.bindValue(":t", QString("Terminée"));
+    if (executer(q)) {
+        while (q.next()) {
+            Occupe o;
+            o.ressource = q.value(0).toString();
+            o.idInter = q.value(1).toInt();
+            o.gravite = q.value(2).toString();
+            r.push_back(o);
+        }
+    }
+    return r;
 }
 
 } // namespace
@@ -209,15 +242,35 @@ PropositionAffectation Affectation::proposer(const Intervention &it)
         for (int i = 0; i < libres.size() && p.vehicules.size() < p.besoinVehicules; ++i)
             if (!dejaChoisi(libres[i].immat) && (pass == 1 || correspond(libres[i], regle.vehPrincipal)))
                 p.vehicules.push_back(libres[i]);
+    // Score de pertinence : principal 100, renfort / secours 75, remplaçant 40
+    for (int i = 0; i < p.vehicules.size(); ++i) {
+        PropositionAffectation::Vehicule &v = p.vehicules[i];
+        if (correspond(v, regle.vehPrincipal))      { v.score = 100; }
+        else if (correspond(v, regle.vehSecours))   { v.score = 75; v.note = QObject::tr("renfort / secours"); }
+        else                                        { v.score = 40; v.note = QObject::tr("remplaçant"); }
+    }
     if (p.vehicules.isEmpty())
         p.avertissements << QObject::tr("Aucun véhicule disponible (tous sont en intervention, en panne ou en maintenance).");
     else if (generique)
-        p.avertissements << QObject::tr("Aucun véhicule de type adapté à « %1 » n'est libre : un véhicule quelconque est proposé.")
-                                .arg(it.getType());
+        p.planB << QObject::tr("aucun véhicule adapté à « %1 » n'est libre : %2 (%3) est proposé à la place, "
+                               "car c'est le véhicule libre le moins kilométré.")
+                       .arg(it.getType(), p.vehicules[0].immat, p.vehicules[0].type);
 
     // ------------------------------------------------------------ employés
     struct Candidat { PropositionAffectation::Employe e; int score; };
     QVector<Candidat> candidats;
+    QMap<int, int> charges;          // employé -> nombre de missions sur les 7 derniers jours
+    {
+        QSqlQuery qc;
+        qc.prepare("SELECT PU.ID_EMPLOYE, COUNT(DISTINCT PU.ID_INTERVENTION) FROM PARTICIPER_UTILISER PU "
+                   "JOIN INTERVENTIONS I ON I.ID_INTERVENTION = PU.ID_INTERVENTION "
+                   "WHERE PU.ID_INTERVENTION <> :id AND I.DATE_INTERVENTION >= TRUNC(SYSDATE) - 7 "
+                   "GROUP BY PU.ID_EMPLOYE");
+        qc.bindValue(":id", it.getId());
+        if (executer(qc))
+            while (qc.next())
+                charges.insert(qc.value(0).toInt(), qc.value(1).toInt());
+    }
     {
         QSqlQuery q;
         q.prepare("SELECT ID_EMPLOYE, NOM_PRENOM, GRADE, SPECIALITE FROM EMPLOYES ORDER BY ID_EMPLOYE");
@@ -231,18 +284,31 @@ PropositionAffectation Affectation::proposer(const Intervention &it)
                 c.e.chef = false;
                 if (empOccupes.contains(QString::number(c.e.id)))
                     continue;
-                c.score = contientUn(c.e.specialite, regle.specialites) ? 0 : 1;   // spécialité adaptée d'abord
+                // score 0..100 = spécialité adaptée (55) + grade (25) + repos récent (20)
+                c.e.charge = charges.value(c.e.id, 0);
+                const int pSpec  = contientUn(c.e.specialite, regle.specialites) ? 55 : 0;
+                const int pGrade = (8 - rangGrade(c.e.grade)) * 25 / 8;
+                const int pRepos = 20 - 5 * qMin(4, c.e.charge);
+                c.e.score = pSpec + pGrade + pRepos;
+                c.score = c.e.score;
                 candidats.push_back(c);
             }
         }
     }
-    std::stable_sort(candidats.begin(), candidats.end(), [](const Candidat &a, const Candidat &b) {
-        if (a.score != b.score) return a.score < b.score;
-        return rangGrade(a.e.grade) < rangGrade(b.e.grade);
-    });
+    // Équipe équilibrée : on prend le meilleur score, avec un petit bonus (+8) pour une spécialité
+    // pas encore présente dans l'équipe (mélange des compétences).
     QVector<PropositionAffectation::Employe> choisis;
-    for (int i = 0; i < candidats.size() && choisis.size() < p.besoinEmployes; ++i)
-        choisis.push_back(candidats[i].e);
+    QSet<QString> specialitesVues;
+    while (choisis.size() < p.besoinEmployes && !candidats.isEmpty()) {
+        int meilleur = 0, meilleurScore = -1;
+        for (int i = 0; i < candidats.size(); ++i) {
+            const int sc = candidats[i].score + (specialitesVues.contains(norm(candidats[i].e.specialite)) ? 0 : 8);
+            if (sc > meilleurScore) { meilleurScore = sc; meilleur = i; }
+        }
+        specialitesVues.insert(norm(candidats[meilleur].e.specialite));
+        choisis.push_back(candidats[meilleur].e);
+        candidats.remove(meilleur);
+    }
     if (choisis.isEmpty())
         p.avertissements << QObject::tr("Aucun employé disponible (tous participent déjà à une intervention non terminée).");
 
@@ -266,6 +332,17 @@ PropositionAffectation Affectation::proposer(const Intervention &it)
                              return a.nom < b.nom;
                          });
         p.employes = choisis;
+        {
+            QSet<QString> specs, grades;
+            int totalCharge = 0;
+            for (int i = 0; i < choisis.size(); ++i) {
+                specs.insert(norm(choisis[i].specialite));
+                grades.insert(norm(choisis[i].grade));
+                totalCharge += choisis[i].charge;
+            }
+            p.equilibre = QObject::tr("équipe de %1 : %2 spécialité(s), %3 grade(s), %4 mission(s) récente(s) au total (7 j)")
+                              .arg(choisis.size()).arg(specs.size()).arg(grades.size()).arg(totalCharge);
+        }
         if (p.employes.size() < p.besoinEmployes)
             p.avertissements << QObject::tr("Effectif insuffisant : %1 employé(s) disponible(s) pour %2 nécessaire(s).")
                                     .arg(p.employes.size()).arg(p.besoinEmployes);
@@ -322,14 +399,42 @@ PropositionAffectation Affectation::proposer(const Intervention &it)
                              return !a.immat.isEmpty() && b.immat.isEmpty();
                          });
         QSet<int> pris;
+        QStringList manquants;                                            // mots-clés sans équipement trouvé
         for (int k = 0; k < regle.equipements.size() && p.equipements.size() < p.besoinEquipements; ++k) {
+            bool trouve = false;
             for (int i = 0; i < libresEq.size(); ++i) {
                 if (pris.contains(libresEq[i].id) || !contientUn(libresEq[i].categorie, QStringList(regle.equipements[k])))
                     continue;
                 pris.insert(libresEq[i].id);
+                libresEq[i].score = libresEq[i].immat.isEmpty() ? 85 : 100;   // embarqué = prêt à partir
                 p.equipements.push_back(libresEq[i]);
+                trouve = true;
                 break;
             }
+            if (!trouve)
+                manquants << regle.equipements[k];
+        }
+        // Plan B : un équipement d'une autre famille d'usage, sinon un équipement polyvalent
+        for (int m = 0; m < manquants.size() && p.equipements.size() < p.besoinEquipements; ++m) {
+            int choix = -1;
+            bool memeUsage = false;
+            for (int i = 0; i < libresEq.size() && choix < 0; ++i)
+                if (!pris.contains(libresEq[i].id) && contientUn(libresEq[i].categorie, regle.equipements)) {
+                    choix = i; memeUsage = true;
+                }
+            for (int i = 0; i < libresEq.size() && choix < 0; ++i)
+                if (!pris.contains(libresEq[i].id))
+                    choix = i;
+            if (choix < 0)
+                break;
+            pris.insert(libresEq[choix].id);
+            libresEq[choix].score = memeUsage ? 60 : 35;
+            libresEq[choix].note = QObject::tr("remplaçant");
+            p.equipements.push_back(libresEq[choix]);
+            p.planB << QObject::tr("aucun équipement « %1 » disponible : « %2 » est proposé à la place (%3).")
+                           .arg(manquants[m], libresEq[choix].categorie,
+                                memeUsage ? QObject::tr("même famille d'usage, libre et en bon état")
+                                          : QObject::tr("équipement polyvalent, libre et en bon état"));
         }
         if (p.equipements.isEmpty())
             p.avertissements << QObject::tr("Aucun équipement adapté n'est disponible (stock vide, périmé ou hors service).");
@@ -337,7 +442,172 @@ PropositionAffectation Affectation::proposer(const Intervention &it)
             p.avertissements << QObject::tr("Équipements insuffisants : %1 trouvé(s) pour %2 souhaité(s).")
                                     .arg(p.equipements.size()).arg(p.besoinEquipements);
     }
+    // ------------------------------------------------------------ plan B : ressources à rappeler
+    // Si l'effectif ou les véhicules manquent, on cite ceux retenus par une intervention MOINS grave.
+    const int rg = rangGravite(it.getGravite());
+    if (p.employes.size() < p.besoinEmployes) {
+        const int manque = p.besoinEmployes - p.employes.size();
+        const QVector<Occupe> occ = occupees(
+            "SELECT DISTINCT E.NOM_PRENOM, I.ID_INTERVENTION, I.GRAVITE FROM PARTICIPER_UTILISER PU "
+            "JOIN INTERVENTIONS I ON I.ID_INTERVENTION = PU.ID_INTERVENTION "
+            "JOIN EMPLOYES E ON E.ID_EMPLOYE = PU.ID_EMPLOYE "
+            "WHERE PU.ID_INTERVENTION <> :id AND (I.STATUT IS NULL OR I.STATUT <> :t)", it.getId());
+        QStringList noms;
+        for (int i = 0; i < occ.size() && noms.size() < manque; ++i)
+            if (rangGravite(occ[i].gravite) < rg)
+                noms << QObject::tr("%1 (intervention n° %2, gravité %3)").arg(occ[i].ressource).arg(occ[i].idInter).arg(occ[i].gravite);
+        if (!noms.isEmpty())
+            p.planB << QObject::tr("il manque %1 employé(s) : on peut rappeler %2, car leur intervention est moins grave.")
+                           .arg(manque).arg(noms.join(", "));
+    }
+    if (p.vehicules.size() < p.besoinVehicules) {
+        const int manque = p.besoinVehicules - p.vehicules.size();
+        const QVector<Occupe> occ = occupees(
+            "SELECT DISTINCT PU.IMMATRICULATION, I.ID_INTERVENTION, I.GRAVITE FROM PARTICIPER_UTILISER PU "
+            "JOIN INTERVENTIONS I ON I.ID_INTERVENTION = PU.ID_INTERVENTION "
+            "WHERE PU.ID_INTERVENTION <> :id AND (I.STATUT IS NULL OR I.STATUT <> :t)", it.getId());
+        QStringList l;
+        for (int i = 0; i < occ.size() && l.size() < manque; ++i)
+            if (rangGravite(occ[i].gravite) < rg)
+                l << QObject::tr("%1 (intervention n° %2, gravité %3)").arg(occ[i].ressource).arg(occ[i].idInter).arg(occ[i].gravite);
+        if (!l.isEmpty())
+            p.planB << QObject::tr("il manque %1 véhicule(s) : on peut rappeler %2, car leur intervention est moins grave.")
+                           .arg(manque).arg(l.join(", "));
+    }
+
+    // ------------------------------------------------------------ pertinence globale
+    int somme = 0, nb = 0;
+    for (int i = 0; i < p.vehicules.size(); ++i)   { somme += p.vehicules[i].score;   ++nb; }
+    for (int i = 0; i < p.employes.size(); ++i)    { somme += p.employes[i].score;    ++nb; }
+    for (int i = 0; i < p.equipements.size(); ++i) { somme += p.equipements[i].score; ++nb; }
+    p.scoreGlobal = nb ? somme / nb : 0;
     return p;
+}
+
+QVector<RessourceDispo> Affectation::disponibilites()
+{
+    QVector<RessourceDispo> r;
+    // clé de la ressource -> numéros des interventions NON terminées qui l'utilisent
+    auto occupations = [](const QString &sql) {
+        QMap<QString, QStringList> m;
+        QSqlQuery q;
+        q.prepare(sql);
+        q.bindValue(":t", QString("Terminée"));
+        if (executer(q)) {
+            while (q.next()) {
+                const QString cle = q.value(0).toString();
+                const QString n = q.value(1).toString();
+                if (!m[cle].contains(n))
+                    m[cle] << n;
+            }
+        }
+        return m;
+    };
+    const QString from = " FROM %1 X JOIN INTERVENTIONS I ON I.ID_INTERVENTION = X.ID_INTERVENTION "
+                         "WHERE (I.STATUT IS NULL OR I.STATUT <> :t)";
+    const QMap<QString, QStringList> empOcc = occupations("SELECT X.ID_EMPLOYE, X.ID_INTERVENTION" + from.arg("PARTICIPER_UTILISER"));
+    const QMap<QString, QStringList> vehOcc = occupations("SELECT X.IMMATRICULATION, X.ID_INTERVENTION" + from.arg("PARTICIPER_UTILISER"));
+    const QMap<QString, QStringList> eqOcc  = occupations("SELECT X.ID_EQUIPEMENT, X.ID_INTERVENTION" + from.arg("NECESSITER"));
+
+    auto trier = [&r](int debut) {          // libres d'abord, dans la famille commençant à « debut »
+        std::stable_sort(r.begin() + debut, r.end(), [](const RessourceDispo &a, const RessourceDispo &b) {
+            return a.libre && !b.libre;
+        });
+    };
+    auto occupe = [](const QStringList &l) {
+        return QObject::tr("Occupé – intervention n° %1").arg(l.join(", "));
+    };
+
+    // ---- employés
+    int debut = r.size();
+    {
+        QSqlQuery q;
+        q.prepare("SELECT ID_EMPLOYE, NOM_PRENOM, GRADE, SPECIALITE FROM EMPLOYES ORDER BY NOM_PRENOM");
+        if (executer(q)) {
+            while (q.next()) {
+                RessourceDispo d;
+                d.genre = QObject::tr("Employé");
+                d.designation = q.value(1).toString();
+                d.detail = q.value(2).toString() + (q.value(3).toString().isEmpty() ? QString() : " · " + q.value(3).toString());
+                const QString cle = q.value(0).toString();
+                d.libre = !empOcc.contains(cle);
+                d.statut = d.libre ? QObject::tr("Libre") : occupe(empOcc.value(cle));
+                r.push_back(d);
+            }
+        }
+    }
+    trier(debut);
+
+    // ---- véhicules
+    debut = r.size();
+    {
+        static const QStringList horsService = QStringList() << "panne" << "maintenance" << "hors"
+                                                             << "reparation" << "indisponible" << "accident";
+        QSqlQuery q;
+        q.prepare("SELECT IMMATRICULATION, TYPE, MODELE, ETAT FROM VEHICULES ORDER BY IMMATRICULATION");
+        if (executer(q)) {
+            while (q.next()) {
+                RessourceDispo d;
+                d.genre = QObject::tr("Véhicule");
+                const QString immat = q.value(0).toString();
+                const QString etat = q.value(3).toString();
+                d.designation = immat + " – " + q.value(1).toString();
+                d.detail = (q.value(2).toString().isEmpty() ? QString() : q.value(2).toString() + " · ")
+                           + QObject::tr("état : ") + (etat.isEmpty() ? "—" : etat);
+                if (contientUn(etat, horsService)) {
+                    d.libre = false;
+                    d.statut = QObject::tr("Indisponible – %1").arg(etat);
+                } else if (vehOcc.contains(immat)) {
+                    d.libre = false;
+                    d.statut = occupe(vehOcc.value(immat));
+                } else {
+                    d.libre = true;
+                    d.statut = QObject::tr("Libre");
+                }
+                r.push_back(d);
+            }
+        }
+    }
+    trier(debut);
+
+    // ---- équipements
+    debut = r.size();
+    {
+        static const QStringList mauvaisEtat = QStringList() << "hors" << "defect" << "mauvais" << "perim"
+                                                             << "casse" << "reparation";
+        QSqlQuery q;
+        q.prepare("SELECT ID_EQUIPEMENT, CATEGORIE, QUANTITE, ETAT, TO_CHAR(DATE_PEREMPTION, 'YYYY-MM-DD'), IMMATRICULATION "
+                  "FROM EQUIPEMENTS ORDER BY CATEGORIE, ID_EQUIPEMENT");
+        if (executer(q)) {
+            while (q.next()) {
+                RessourceDispo d;
+                d.genre = QObject::tr("Équipement");
+                const QString cle = q.value(0).toString();
+                const int quantite = q.value(2).toInt();
+                const QString etat = q.value(3).toString();
+                const QDate peremption = QDate::fromString(q.value(4).toString(), "yyyy-MM-dd");
+                const QString immat = q.value(5).toString();
+                const int utilise = eqOcc.value(cle).size();
+                d.designation = q.value(1).toString();
+                d.detail = QObject::tr("quantité : %1").arg(quantite) + " · "
+                           + (immat.isEmpty() ? QObject::tr("dépôt") : QObject::tr("dans le véhicule %1").arg(immat));
+                if (contientUn(etat, mauvaisEtat)) {
+                    d.statut = QObject::tr("Indisponible – état : %1").arg(etat);
+                } else if (peremption.isValid() && peremption <= QDate::currentDate()) {
+                    d.statut = QObject::tr("Périmé depuis le %1").arg(peremption.toString("dd/MM/yyyy"));
+                } else if (quantite - utilise <= 0) {
+                    d.statut = eqOcc.contains(cle) ? QObject::tr("Épuisé – utilisé par l'intervention n° %1").arg(eqOcc.value(cle).join(", "))
+                                                   : QObject::tr("Stock vide");
+                } else {
+                    d.libre = true;
+                    d.statut = QObject::tr("Libre – %1 disponible(s)").arg(quantite - utilise);
+                }
+                r.push_back(d);
+            }
+        }
+    }
+    trier(debut);
+    return r;
 }
 
 bool Affectation::enregistrer(int idIntervention, const PropositionAffectation &p)

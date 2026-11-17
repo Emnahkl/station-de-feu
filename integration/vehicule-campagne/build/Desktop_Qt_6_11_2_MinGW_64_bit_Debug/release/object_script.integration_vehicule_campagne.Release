@@ -1,0 +1,13 @@
+release/main.o
+release/mainwindow.o
+release/vehiclewindow.o
+release/campaignwindow.o
+release/connection.o
+release/campagne.o
+release/barchartwidget.o
+release/qrc_vehicle_resources.o
+release/qrc_campaign_resources.o
+release/moc_mainwindow.o
+release/moc_vehiclewindow.o
+release/moc_campaignwindow.o
+release/moc_barchartwidget.o

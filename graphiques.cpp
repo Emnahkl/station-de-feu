@@ -213,3 +213,132 @@ void GraphiqueWidget::paintEvent(QPaintEvent *)
     else
         Graphiques::histogramme(p, zone, m_titre, m_donnees);
 }
+
+
+// ------------------------------------------------------------ Itinéraire (façon Google Maps)
+namespace {
+const int X_LIGNE = 34;        // axe vertical du trait
+const int H_DEPART = 46;       // hauteur de la ligne « départ »
+const int H_TRAJET = 54;       // longueur d'un trajet entre deux repères
+const int H_ARRET  = 98;       // hauteur d'un arrêt (texte)
+const int MARGE    = 14;
+}
+
+ItineraireWidget::ItineraireWidget(QWidget *parent)
+    : QWidget(parent)
+{
+    setMinimumWidth(300);
+    definir(QVector<EtapeItineraire>(), QString(), QString());
+}
+
+void ItineraireWidget::definir(const QVector<EtapeItineraire> &etapes, const QString &depart, const QString &fin)
+{
+    m_etapes = etapes;
+    m_depart = depart;
+    m_fin = fin;
+    setMinimumHeight(MARGE * 2 + H_DEPART + m_etapes.size() * (H_TRAJET + H_ARRET) + H_TRAJET + 50);
+    update();
+}
+
+void ItineraireWidget::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), Qt::white);
+    if (m_etapes.isEmpty())
+        return;
+
+    const QColor bleu("#2563eb");
+    const int xTexte = X_LIGNE + 30;
+    const int largeurTexte = qMax(80, width() - xTexte - MARGE);
+
+    // ---- positions verticales (centre de chaque repère) : départ, puis (trajet + arrêt) répétés
+    QVector<int> yCentre;
+    int ligne = MARGE;
+    yCentre.push_back(ligne + 14);
+    ligne += H_DEPART;
+    for (int i = 0; i < m_etapes.size(); ++i) {
+        ligne += H_TRAJET;
+        yCentre.push_back(ligne + 14);
+        ligne += H_ARRET;
+    }
+
+    // ---- trait de l'itinéraire (derrière les repères)
+    p.setPen(QPen(bleu, 5, Qt::SolidLine, Qt::RoundCap));
+    p.drawLine(X_LIGNE, yCentre.first(), X_LIGNE, yCentre.last() + H_ARRET - 30);
+    p.setPen(QPen(QColor("#9ca3af"), 4, Qt::DotLine, Qt::RoundCap));
+    p.drawLine(X_LIGNE, yCentre.last() + H_ARRET - 30, X_LIGNE, yCentre.last() + H_ARRET - 30 + 22);
+
+    // ---- départ : cercle creux
+    p.setPen(QPen(bleu, 4));
+    p.setBrush(Qt::white);
+    p.drawEllipse(QPointF(X_LIGNE, yCentre[0]), 10, 10);
+    p.setPen(COULEUR_TEXTE);
+    p.setFont(police(14, true));
+    p.drawText(QRectF(xTexte, yCentre[0] - 12, largeurTexte, 20), Qt::AlignLeft | Qt::AlignVCenter,
+               QObject::tr("Caserne – départ"));
+    p.setPen(COULEUR_AXE);
+    p.setFont(police(12));
+    p.drawText(QRectF(xTexte, yCentre[0] + 8, largeurTexte, 18), Qt::AlignLeft | Qt::AlignVCenter, m_depart);
+
+    // ---- étapes
+    for (int i = 0; i < m_etapes.size(); ++i) {
+        const EtapeItineraire &e = m_etapes[i];
+        const int cy = yCentre[i + 1];
+
+        // durée du trajet, à côté du trait (pastille grise)
+        const QString duree = QObject::tr("%1 min").arg(e.trajetMin);
+        p.setFont(police(12, true));
+        const int wDuree = QFontMetrics(p.font()).horizontalAdvance(duree) + 18;
+        const QRectF pastille(xTexte, cy - 14 - H_TRAJET / 2 - 11, wDuree, 22);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor("#eef2ff"));
+        p.drawRoundedRect(pastille, 11, 11);
+        p.setPen(bleu);
+        p.drawText(pastille, Qt::AlignCenter, duree);
+        p.setPen(COULEUR_AXE);
+        p.setFont(police(11));
+        p.drawText(QRectF(pastille.right() + 8, pastille.top(), largeurTexte - wDuree - 8, 22),
+                   Qt::AlignLeft | Qt::AlignVCenter, QObject::tr("de trajet"));
+
+        // épingle numérotée
+        p.setPen(QPen(Qt::white, 2));
+        p.setBrush(e.couleur);
+        p.drawEllipse(QPointF(X_LIGNE, cy), 15, 15);
+        p.setPen(Qt::white);
+        p.setFont(police(14, true));
+        p.drawText(QRectF(X_LIGNE - 15, cy - 15, 30, 30), Qt::AlignCenter, QString::number(e.ordre));
+
+        // texte de l'arrêt
+        QFontMetrics fm(police(14, true));
+        p.setPen(COULEUR_TEXTE);
+        p.setFont(police(14, true));
+        p.drawText(QRectF(xTexte, cy - 14, largeurTexte, 20), Qt::AlignLeft | Qt::AlignVCenter,
+                   fm.elidedText(QString("#%1 · %2").arg(e.idIntervention).arg(e.titre), Qt::ElideRight, largeurTexte));
+        p.setFont(police(12));
+        QFontMetrics fm2(police(12));
+        p.setPen(COULEUR_TEXTE);
+        p.drawText(QRectF(xTexte, cy + 6, largeurTexte, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   fm2.elidedText(e.adresse, Qt::ElideRight, largeurTexte));
+        p.setPen(COULEUR_AXE);
+        p.drawText(QRectF(xTexte, cy + 24, largeurTexte, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   fm2.elidedText(e.zone + "  ·  " + QObject::tr("gravité %1").arg(e.gravite), Qt::ElideRight, largeurTexte));
+        p.setFont(police(12, true));
+        p.setPen(COULEUR_TEXTE);
+        p.drawText(QRectF(xTexte, cy + 43, largeurTexte, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   QObject::tr("%1 → %2  (%3 min sur place)").arg(e.arrivee, e.fin).arg(e.surPlaceMin));
+        p.setPen(e.retard ? QColor("#b91c1c") : QColor("#15803d"));
+        p.drawText(QRectF(xTexte, cy + 61, largeurTexte, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   (e.retard ? QString::fromUtf8("\xE2\x9A\xA0 ") : QString::fromUtf8("\xE2\x9C\x94 ")) + e.texteRetard);
+    }
+
+    // ---- fin de mission : petit drapeau (cercle gris)
+    const int yDrap = yCentre.last() + H_ARRET - 30 + 22 + 8;
+    p.setPen(QPen(QColor("#6b7280"), 3));
+    p.setBrush(Qt::white);
+    p.drawEllipse(QPointF(X_LIGNE, yDrap), 8, 8);
+    p.setPen(COULEUR_TEXTE);
+    p.setFont(police(13, true));
+    p.drawText(QRectF(xTexte, yDrap - 10, largeurTexte, 20), Qt::AlignLeft | Qt::AlignVCenter,
+               QObject::tr("Fin du parcours – %1").arg(m_fin));
+}

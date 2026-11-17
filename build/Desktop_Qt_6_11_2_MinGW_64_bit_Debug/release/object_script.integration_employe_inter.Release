@@ -1,0 +1,10 @@
+release/main.o
+release/mainwindow.o
+release/employespage.o
+release/interventionspage.o
+release/rightpanel.o
+release/qrc_resources.o
+release/moc_mainwindow.o
+release/moc_employespage.o
+release/moc_interventionspage.o
+release/moc_rightpanel.o

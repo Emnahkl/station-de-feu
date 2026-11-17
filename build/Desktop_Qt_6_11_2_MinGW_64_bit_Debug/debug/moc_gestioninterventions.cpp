@@ -45,10 +45,20 @@ template <> constexpr inline auto GestionInterventions::qt_create_metaobjectdata
         "modifier",
         "supprimer",
         "consulter",
+        "bandeauValider",
+        "bandeauAnnuler",
+        "enregistrerEdition",
+        "annulerEdition",
+        "confirmerSuppression",
+        "majBoutons",
         "exporterPdf",
         "trierParDate",
-        "trierParGravite",
+        "trierParId",
         "afficherStats",
+        "afficherParcours",
+        "afficherAffectation",
+        "validerAffectation",
+        "afficherRessources",
         "fonctionnaliteAVenir"
     };
 
@@ -63,16 +73,36 @@ template <> constexpr inline auto GestionInterventions::qt_create_metaobjectdata
         QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'consulter'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'exporterPdf'
+        // Slot 'bandeauValider'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'trierParDate'
+        // Slot 'bandeauAnnuler'
         QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'trierParGravite'
+        // Slot 'enregistrerEdition'
         QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'afficherStats'
+        // Slot 'annulerEdition'
         QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'fonctionnaliteAVenir'
+        // Slot 'confirmerSuppression'
         QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'majBoutons'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'exporterPdf'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'trierParDate'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'trierParId'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'afficherStats'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'afficherParcours'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'afficherAffectation'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'validerAffectation'
+        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'afficherRessources'
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'fonctionnaliteAVenir'
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -101,11 +131,21 @@ void GestionInterventions::qt_static_metacall(QObject *_o, QMetaObject::Call _c,
         case 2: _t->modifier(); break;
         case 3: _t->supprimer(); break;
         case 4: _t->consulter(); break;
-        case 5: _t->exporterPdf(); break;
-        case 6: _t->trierParDate(); break;
-        case 7: _t->trierParGravite(); break;
-        case 8: _t->afficherStats(); break;
-        case 9: _t->fonctionnaliteAVenir(); break;
+        case 5: _t->bandeauValider(); break;
+        case 6: _t->bandeauAnnuler(); break;
+        case 7: _t->enregistrerEdition(); break;
+        case 8: _t->annulerEdition(); break;
+        case 9: _t->confirmerSuppression(); break;
+        case 10: _t->majBoutons(); break;
+        case 11: _t->exporterPdf(); break;
+        case 12: _t->trierParDate(); break;
+        case 13: _t->trierParId(); break;
+        case 14: _t->afficherStats(); break;
+        case 15: _t->afficherParcours(); break;
+        case 16: _t->afficherAffectation(); break;
+        case 17: _t->validerAffectation(); break;
+        case 18: _t->afficherRessources(); break;
+        case 19: _t->fonctionnaliteAVenir(); break;
         default: ;
         }
     }
@@ -131,14 +171,14 @@ int GestionInterventions::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 10)
+        if (_id < 20)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 10;
+        _id -= 20;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 10)
+        if (_id < 20)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 10;
+        _id -= 20;
     }
     return _id;
 }

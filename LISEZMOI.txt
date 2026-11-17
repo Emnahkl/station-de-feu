@@ -22,10 +22,25 @@ UTILISATION (une seule page, aucun formulaire à côté)
   pendant une saisie, tout le reste est verrouillé (une seule ligne à la fois).
 - Raccourcis : Ctrl+N ajouter, F2 modifier, Suppr supprimer, Ctrl+P PDF, Ctrl+T statistiques, Ctrl+F recherche.
 - Tri : boutons ID et Date ; 1er clic = croissant (Date : du plus récent au plus ancien), 2e clic = ordre inverse (flèches ▲ ▼).
-- Parcours recommandé : ordre conseillé de traitement des interventions « En cours » / « En attente » :
-  gravité décroissante, puis regroupement par zone, puis la plus ancienne ; trajet = TEMPS_INTERVENTION de la zone
-  (3 min dans la même zone), durée sur place selon la gravité ; heures d'arrivée et de fin prévues.
-- Statistiques et parcours remplacent le tableau, bouton « Retour à la liste ».
+- Parcours recommandé (interventions non terminées) :
+  * Score de priorité 0-100 = gravité (15/30/45/60) + attente (1 pt / 6 min, max 25) + risque de la zone (3/8/15),
+    recalculé à chaque étape avec l'heure d'arrivée estimée (une intervention qui attend remonte) ; +6 si elle est
+    dans la zone où l'équipe se trouve déjà. Trajet = TEMPS_INTERVENTION de la zone (3 min dans la même zone),
+    durée sur place selon la gravité (20/30/45/60 min).
+  * Alerte de retard : arrivée prévue - heure du signalement > 10 / 15 / 30 / 60 min (Critique / Élevée / Moyenne /
+    Faible) => ligne rouge, colonne « Retard ».
+  * Colonne « Départ conseillé » = heure du signalement - trajet (« tout de suite » si c'est déjà passé).
+  * Bouton « ? Comment c'est calculé » : affiche / cache les règles (priorité, trajet, durée sur place, retard), une par ligne.
+  * Itinéraire à gauche façon Google Maps : départ de la caserne, puis une épingle numérotée par intervention
+    (couleur = gravité), reliées par un trait avec la durée de chaque trajet, heures d'arrivée / fin et retard.
+    Le séparateur entre l'itinéraire et le tableau peut être déplacé à la souris.
+- Statut automatique : une intervention du jour ajoutée est « En attente » (verrouillé) ; elle passe à « En cours » quand
+  l'affectation est validée. Date passée => « Terminée », date future => « En cours ».
+- Ressources disponibles (bouton à côté de « Affectation automatique ») : employés, véhicules et équipements avec leur
+  disponibilité (Libre / Occupé – intervention n° X / Indisponible – panne, périmé, stock vide...), case « Libres seulement ».
+- Affectation automatique : chaque ressource a un score de pertinence (barre + %), l'équipe est équilibrée (spécialité 55
+  + grade 25 + repos des 7 derniers jours 20, bonus si une spécialité nouvelle est ajoutée) et un « Plan B » explique
+  les remplaçants proposés (véhicule, équipement) ou les ressources à rappeler d'une intervention moins grave.
 - Affectation automatique (intervention sélectionnée) : propose véhicules + équipe + équipements, puis « Valider »
   enregistre dans PARTICIPER_UTILISER et NECESSITER (l'ancienne affectation est remplacée). Rien n'est écrit avant la validation.
   Ressources LIBRES seulement (pas utilisées par une autre intervention non terminée) ; véhicules en panne / maintenance,
@@ -39,7 +54,7 @@ CONTRÔLE DE SAISIE (intervention.cpp, vérifié en direct dans la ligne)
 - Adresse : 8 à 100 caractères, lettres/chiffres et , . ' - / seulement (le reste est refusé dès la frappe),
   [numéro] + type de voie + nom (3 lettres minimum), ville optionnelle. « Rue 8 Mars 1934 » et
   « Avenue du 14 Janvier » sont acceptées. Espaces en double supprimés à l'enregistrement.
-- Date : pas dans le futur, pas avant le 01/01/2026 ; date passée => statut « Terminée » (verrouillé).
+- Date : pas avant le 01/01/2026 ; date passée => statut « Terminée », date future => statut « En cours » (verrouillés).
 - Doublon refusé (même type, adresse, date et heure). Recherche limitée à 50 caractères, % et _ pris littéralement.
 - Erreurs Oracle courantes traduites en français.
 
