@@ -1,20 +1,27 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef VehicleWindow_H
+#define VehicleWindow_H
 
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMainWindow>
 
+class QPushButton;
+
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
+namespace Ui { class VehicleWindow; }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class VehicleWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit VehicleWindow(QWidget *parent = nullptr);
+    ~VehicleWindow();
+    void afficherVehicules();
+
+signals:
+    void ouvrirTableauDeBord();
+    void ouvrirInterventions();
 
 private:
     void loadVehicles();
@@ -33,8 +40,9 @@ private:
     int indexForRegistration(const QString &immatriculation) const;
     bool isMaintenanceDue(const QJsonObject &vehicle) const;
 
-    Ui::MainWindow *ui;
+    Ui::VehicleWindow *ui;
     QJsonArray vehicles;
+    QPushButton *interventionsButton = nullptr;
 };
 
-#endif // MAINWINDOW_H
+#endif // VehicleWindow_H

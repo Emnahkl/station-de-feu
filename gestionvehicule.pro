@@ -1,4 +1,5 @@
-QT += widgets printsupport sql
+QT += widgets printsupport sql charts
+QT += multimedia
 
 CONFIG += c++17
 TARGET = gestionvehicule
@@ -6,16 +7,41 @@ TARGET = gestionvehicule
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    integration/integratedwindow.cpp \
+    integration/emp_interv/employeswindow.cpp \
+    integration/emp_interv/employe.cpp \
+    integration/emp_interv/gestioninterventions.cpp \
+    integration/emp_interv/intervention.cpp \
+    integration/emp_interv/affectation.cpp \
+    integration/emp_interv/graphiques.cpp \
+    equipement.cpp \
+    equipementswindow.cpp \
+    exports.cpp \
     integ1/connexion.cpp \
     integ1/vehicule.cpp
 
 HEADERS += \
     mainwindow.h \
+    integration/integratedwindow.h \
+    integration/emp_interv/employeswindow.h \
+    integration/emp_interv/employe.h \
+    integration/emp_interv/gestioninterventions.h \
+    integration/emp_interv/intervention.h \
+    integration/emp_interv/affectation.h \
+    integration/emp_interv/graphiques.h \
+    equipement.h \
+    equipementswindow.h \
+    exports.h \
     integ1/connexion.h \
     integ1/vehicule.h
 
 FORMS += \
-    mainwindow.ui
+    vehiclewindow.ui \
+    integration/emp_interv/employeswindow.ui \
+    integration/emp_interv/gestioninterventions.ui \
+    equipements.ui
 
 RESOURCES += \
-    resources.qrc
+    resources.qrc \
+    integration/emp_interv/emp_interv.qrc \
+    resources_equipment.qrc

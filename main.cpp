@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+#include "integration/integratedwindow.h"
 #include "integ1/connexion.h"
 
 #include <QApplication>
@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     if (!Connexion::ouvrir(nullptr, true))
         return 1;
 
-    MainWindow window;
+    IntegratedWindow window;
     window.showMaximized();
     return app.exec();
 }

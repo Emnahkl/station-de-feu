@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include "ui_vehiclewindow.h"
 #include "integ1/vehicule.h"
 
 #include <QAbstractItemView>
@@ -7,6 +7,7 @@
 #include <QCalendarWidget>
 #include <QDate>
 #include <QDateEdit>
+#include <QEvent>
 #include <QDialog>
 #include <QDir>
 #include <QFile>
@@ -38,6 +39,7 @@
 #include <QHBoxLayout>
 #include <QSpinBox>
 #include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QSet>
 #include <algorithm>
 
@@ -98,19 +100,27 @@ private:
 };
 }
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow)
+VehicleWindow::VehicleWindow(QWidget *parent)
+    : QMainWindow(parent), ui(new Ui::VehicleWindow)
 {
     ui->setupUi(this);
     setWindowTitle("Fire Station — Gestion des véhicules");
     loadVehicles();
 
+    interventionsButton = new QPushButton(QStringLiteral("🚨   Interventions"), this);
+    interventionsButton->setCheckable(false);
+    ui->sidebarLayout->insertWidget(5, interventionsButton);
+    connect(interventionsButton, &QPushButton::clicked, this, &VehicleWindow::ouvrirInterventions);
+
+    ui->plate->setMaxLength(20);
+    ui->plate->setValidator(new QRegularExpressionValidator(
+        QRegularExpression(QStringLiteral("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")), ui->plate));
     ui->type->addItems(vehicleTypes);
     ui->typeFilter->addItems(vehicleTypes);
     ui->status->addItems(vehicleStatuses);
     ui->statusFilter->addItems(vehicleStatuses);
     ui->maintenanceDate->setDate(QDate::currentDate());
-    ui->maintenanceDate->setMaximumDate(QDate::currentDate().addYears(10));
+    ui->maintenanceDate->setMaximumDate(QDate::currentDate());
     ui->maintenanceMileage->setMinimum(0);
     ui->maintenanceMileage->setMaximum(99999999);
     ui->maintenanceMileage->setSpecialValueText(QStringLiteral("Inconnu"));
@@ -168,42 +178,47 @@ MainWindow::MainWindow(QWidget *parent)
         QToolButton:hover { background: #f2f5f9; }
     )");
 
-    const QList<QPushButton *> navigation = {ui->dashboardButton, ui->vehiclesButton};
-    for (int i = 0; i < navigation.size(); ++i) {
-        connect(navigation[i], &QPushButton::clicked, this, [this, navigation, i]() {
-            ui->stackedWidget->setCurrentIndex(i);
-            for (int j = 0; j < navigation.size(); ++j) navigation[j]->setChecked(j == i);
-        });
-    }
-    connect(ui->dashboardVehiclesButton, &QPushButton::clicked, ui->vehiclesButton, &QPushButton::click);
-    connect(ui->addVehicleButton, &QPushButton::clicked, this, &MainWindow::resetForm);
-    connect(ui->resetVehicle, &QPushButton::clicked, this, &MainWindow::resetForm);
-    connect(ui->saveVehicle, &QPushButton::clicked, this, &MainWindow::saveVehicle);
-    connect(ui->searchEdit, &QLineEdit::textChanged, this, &MainWindow::refreshTable);
+    connect(ui->dashboardButton, &QPushButton::clicked, this, &VehicleWindow::ouvrirTableauDeBord);
+    connect(ui->vehiclesButton, &QPushButton::clicked, this, [this]() { afficherVehicules(); });
+    connect(ui->dashboardVehiclesButton, &QPushButton::clicked, this, [this]() { afficherVehicules(); });
+    connect(ui->addVehicleButton, &QPushButton::clicked, this, &VehicleWindow::resetForm);
+    connect(ui->resetVehicle, &QPushButton::clicked, this, &VehicleWindow::resetForm);
+    connect(ui->saveVehicle, &QPushButton::clicked, this, &VehicleWindow::saveVehicle);
+    connect(ui->searchEdit, &QLineEdit::textChanged, this, &VehicleWindow::refreshTable);
     connect(ui->globalSearch, &QLineEdit::textChanged, this, [this](const QString &text) {
         ui->searchEdit->setText(text);
-        ui->stackedWidget->setCurrentIndex(1);
-        ui->vehiclesButton->setChecked(true);
-        ui->dashboardButton->setChecked(false);
+        afficherVehicules();
     });
-    connect(ui->typeFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::refreshTable);
-    connect(ui->statusFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::refreshTable);
-    connect(ui->sortCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainWindow::refreshTable);
-    connect(ui->notificationsButton, &QToolButton::clicked, this, &MainWindow::showMaintenanceAlerts);
-    connect(ui->calendarButton, &QToolButton::clicked, this, &MainWindow::showVehicleCalendar);
-    connect(ui->maintenanceAlertsButton, &QPushButton::clicked, this, &MainWindow::showMaintenanceAlerts);
-    connect(ui->statisticsButton, &QPushButton::clicked, this, &MainWindow::showStatistics);
-    connect(ui->recommendButton, &QPushButton::clicked, this, &MainWindow::recommendVehicle);
-    connect(ui->exportCsvButton, &QPushButton::clicked, this, &MainWindow::exportCsv);
-    connect(ui->exportPdfButton, &QPushButton::clicked, this, &MainWindow::exportPdf);
+    connect(ui->typeFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &VehicleWindow::refreshTable);
+    connect(ui->statusFilter, qOverload<int>(&QComboBox::currentIndexChanged), this, &VehicleWindow::refreshTable);
+    connect(ui->sortCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &VehicleWindow::refreshTable);
+    connect(ui->notificationsButton, &QToolButton::clicked, this, &VehicleWindow::showMaintenanceAlerts);
+    connect(ui->calendarButton, &QToolButton::clicked, this, &VehicleWindow::showVehicleCalendar);
+    connect(ui->maintenanceAlertsButton, &QPushButton::clicked, this, &VehicleWindow::showMaintenanceAlerts);
+    connect(ui->statisticsButton, &QPushButton::clicked, this, &VehicleWindow::showStatistics);
+    connect(ui->recommendButton, &QPushButton::clicked, this, &VehicleWindow::recommendVehicle);
+    connect(ui->exportCsvButton, &QPushButton::clicked, this, &VehicleWindow::exportCsv);
+    connect(ui->exportPdfButton, &QPushButton::clicked, this, &VehicleWindow::exportPdf);
+
+    ui->dashboardButton->setChecked(false);
 
     refreshTable();
     refreshDashboard();
 }
 
-MainWindow::~MainWindow() { delete ui; }
+VehicleWindow::~VehicleWindow() { delete ui; }
 
-void MainWindow::loadVehicles()
+void VehicleWindow::afficherVehicules()
+{
+    ui->stackedWidget->setCurrentIndex(1);
+    ui->vehiclesButton->setChecked(true);
+    ui->dashboardButton->setChecked(false);
+    if (interventionsButton) interventionsButton->setChecked(false);
+    setWindowTitle(QStringLiteral("Fire Station — Gestion des véhicules"));
+    ui->topTitle->setText(QStringLiteral("FIRE STATION\nGestion des véhicules"));
+}
+
+void VehicleWindow::loadVehicles()
 {
     QString error;
     const QList<Vehicule> rows = Vehicule::afficher(QString(), QString(), QString(), QStringLiteral("IMMATRICULATION ASC"), &error);
@@ -226,14 +241,14 @@ void MainWindow::loadVehicles()
     if (!error.isEmpty()) QMessageBox::warning(this, "Lecture de la base", error);
 }
 
-int MainWindow::indexForRegistration(const QString &immatriculation) const
+int VehicleWindow::indexForRegistration(const QString &immatriculation) const
 {
     for (int i = 0; i < vehicles.size(); ++i)
         if (vehicles[i].toObject().value("registration").toString().compare(immatriculation, Qt::CaseInsensitive) == 0) return i;
     return -1;
 }
 
-bool MainWindow::isMaintenanceDue(const QJsonObject &v) const
+bool VehicleWindow::isMaintenanceDue(const QJsonObject &v) const
 {
     const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
     const bool dateDue = date.isValid() && date.daysTo(QDate::currentDate()) >= 365;
@@ -244,7 +259,7 @@ bool MainWindow::isMaintenanceDue(const QJsonObject &v) const
     return dateDue || mileageDue;
 }
 
-void MainWindow::refreshTable()
+void VehicleWindow::refreshTable()
 {
     QList<QJsonObject> filtered;
     const QString query = ui->searchEdit->text().trimmed();
@@ -307,7 +322,7 @@ void MainWindow::refreshTable()
     refreshDashboard();
 }
 
-void MainWindow::refreshDashboard()
+void VehicleWindow::refreshDashboard()
 {
     int available = 0, due = 0;
     for (const QJsonValue &value : vehicles) {
@@ -320,7 +335,7 @@ void MainWindow::refreshDashboard()
     ui->maintenanceValue->setText(QString::number(due));
 }
 
-void MainWindow::resetForm()
+void VehicleWindow::resetForm()
 {
     ui->saveVehicle->setProperty("editImmat", QString());
     ui->formTitle->setText("Ajouter un véhicule");
@@ -336,7 +351,7 @@ void MainWindow::resetForm()
     ui->plate->setFocus();
 }
 
-void MainWindow::editVehicle(const QString &immatriculation)
+void VehicleWindow::editVehicle(const QString &immatriculation)
 {
     const int index = indexForRegistration(immatriculation);
     if (index < 0) return;
@@ -355,7 +370,7 @@ void MainWindow::editVehicle(const QString &immatriculation)
     ui->notes->setPlainText(v.value("notes").toString());
 }
 
-void MainWindow::deleteVehicle(const QString &immatriculation)
+void VehicleWindow::deleteVehicle(const QString &immatriculation)
 {
     const int index = indexForRegistration(immatriculation);
     if (index < 0) return;
@@ -370,12 +385,19 @@ void MainWindow::deleteVehicle(const QString &immatriculation)
     refreshTable();
 }
 
-void MainWindow::saveVehicle()
+void VehicleWindow::saveVehicle()
 {
     const QString registration = ui->plate->text().trimmed().toUpper();
     const QString model = ui->model->text().trimmed();
     if (registration.isEmpty() || model.isEmpty()) {
         QMessageBox::warning(this, "Informations manquantes", "Renseignez l’immatriculation et le modèle du véhicule.");
+        return;
+    }
+    static const QRegularExpression registrationPattern(
+        QStringLiteral("^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$"));
+    if (registration.size() > 20 || !registrationPattern.match(registration).hasMatch()) {
+        QMessageBox::warning(this, "Immatriculation invalide",
+            "Utilisez uniquement des lettres, des chiffres et des tirets, sans tiret au début ou à la fin.");
         return;
     }
     const QString ancienneImmatriculation = ui->saveVehicle->property("editImmat").toString();
@@ -401,6 +423,11 @@ void MainWindow::saveVehicle()
             "Le kilométrage de la dernière maintenance ne peut pas dépasser le kilométrage actuel.");
         return;
     }
+    if (ui->maintenanceDate->date() > QDate::currentDate()) {
+        QMessageBox::warning(this, "Date invalide",
+            "La date de maintenance ne peut pas être dans le futur.");
+        return;
+    }
     v.derniereMaintenance = ui->maintenanceDate->date();
     QString error;
     const bool saved = !ancienneImmatriculation.isEmpty()
@@ -415,7 +442,7 @@ void MainWindow::saveVehicle()
     resetForm();
 }
 
-void MainWindow::showMaintenanceAlerts()
+void VehicleWindow::showMaintenanceAlerts()
 {
     QStringList alerts;
     QStringList incompleteMileageHistory;
@@ -449,7 +476,7 @@ void MainWindow::showMaintenanceAlerts()
     QMessageBox::information(this, "Alertes de maintenance", messages.join('\n'));
 }
 
-void MainWindow::showVehicleCalendar()
+void VehicleWindow::showVehicleCalendar()
 {
     QDialog dialog(this);
     dialog.setWindowTitle("Calendrier des véhicules");
@@ -531,7 +558,7 @@ void MainWindow::showVehicleCalendar()
     dialog.exec();
 }
 
-void MainWindow::showStatistics()
+void VehicleWindow::showStatistics()
 {
     QMap<QString, int> counts;
     for (const QJsonValue &value : vehicles) {
@@ -553,7 +580,7 @@ void MainWindow::showStatistics()
     dialog.exec();
 }
 
-void MainWindow::recommendVehicle()
+void VehicleWindow::recommendVehicle()
 {
     QStringList choices = {"Tous les types"};
     choices.append(vehicleTypes);
@@ -589,7 +616,7 @@ void MainWindow::recommendVehicle()
             .arg(v.value("mileage").toInt()));
 }
 
-void MainWindow::exportCsv()
+void VehicleWindow::exportCsv()
 {
     const QString path = QFileDialog::getSaveFileName(this, "Exporter les véhicules", "vehicules.csv", "Fichier CSV (*.csv)");
     if (path.isEmpty()) return;
@@ -612,7 +639,7 @@ void MainWindow::exportCsv()
     QMessageBox::information(this, "Export terminé", "Le fichier CSV est prêt. Vous pouvez l’ouvrir avec Excel.");
 }
 
-void MainWindow::exportPdf()
+void VehicleWindow::exportPdf()
 {
     const QString path = QFileDialog::getSaveFileName(this, "Exporter les véhicules en PDF", "vehicules.pdf", "Document PDF (*.pdf)");
     if (path.isEmpty()) return;
