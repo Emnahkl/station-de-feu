@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "integ1/vehicule.h"
+#include "equipementswindow.h"
 
 #include <QAbstractItemView>
 #include <QColor>
@@ -27,6 +28,9 @@
 #include <QPrinter>
 #include <QPushButton>
 #include <QComboBox>
+#include <QAction>
+#include <QMenu>
+#include <QMenuBar>
 #include <QStandardPaths>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -103,6 +107,13 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle("Fire Station — Gestion des véhicules");
+    QMenu *modulesMenu = menuBar()->addMenu(QStringLiteral("Modules"));
+    QAction *equipmentAction = modulesMenu->addAction(QStringLiteral("Gestion des équipements"));
+    connect(equipmentAction, &QAction::triggered, this, [this]() {
+        auto *window = new EquipementsWindow(this);
+        window->setAttribute(Qt::WA_DeleteOnClose);
+        window->showMaximized();
+    });
     loadVehicles();
 
     ui->type->addItems(vehicleTypes);

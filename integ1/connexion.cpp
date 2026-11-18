@@ -203,6 +203,16 @@ bool Connexion::ouvrir(QWidget *parent, bool oracleOnly)
             db.close();
             return false;
         }
+        QSqlQuery equipmentColumns(db);
+        if (!equipmentColumns.exec("SELECT ID_EQUIPEMENT, DESIGNATION, CATEGORIE, QUANTITE, DATE_ACQUISITION, ETAT, DATE_PROCHAIN_CONTROLE, DATE_PEREMPTION, IMMATRICULATION, SEUIL_ALERTE FROM EQUIPEMENTS WHERE 1=0")) {
+            QMessageBox::critical(parent, "Schéma des équipements incomplet",
+                "La connexion Oracle fonctionne, mais EQUIPEMENTS n'a pas encore toutes les colonnes du CRUD. "
+                "Dans SQL Developer, exécutez integ1/database/oracle_schema.sql (nouvelle base) ou "
+                "integ1/database/migrate_equipements_oracle.sql (base déjà créée).\n\nDétail : "
+                + equipmentColumns.lastError().text());
+            db.close();
+            return false;
+        }
         QString historyError;
         if (!ensureVehicleEventsTable(db, &historyError)) {
             QMessageBox::critical(parent, "Historique des véhicules",
