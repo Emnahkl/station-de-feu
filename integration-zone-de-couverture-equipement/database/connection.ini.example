@@ -1,0 +1,6 @@
+[oracle]
+user=FIRESTATION_APP
+password=REMPLACER_LOCALMENT
+service=XE
+driver=Oracle in XE
+
