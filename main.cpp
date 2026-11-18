@@ -1,4 +1,5 @@
-#include "mainwindow.h"
+#include "integration/integratedwindow.h"
+#include "integ1/connexion.h"
 
 #include <QApplication>
 
@@ -9,7 +10,10 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("GestionVehicules");
     app.setStyle("Fusion");
 
-    MainWindow window;
+    if (!Connexion::ouvrir(nullptr, true))
+        return 1;
+
+    IntegratedWindow window;
     window.showMaximized();
     return app.exec();
 }
