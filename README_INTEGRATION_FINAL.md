@@ -24,9 +24,8 @@ L'application utilise la connexion Oracle commune `firestation-main`. Saisis le 
 
 Le code utilise le schéma SAFESTATION et les tables/pluriels du MLD fourni : `EMPLOYES`, `VEHICULES`, `INTERVENTIONS`, `EQUIPEMENTS`, etc. L'export SQL transmis a été consulté pour aligner le CRUD Équipements sur la table `EQUIPEMENTS` et ses colonnes réelles. L'export complet contenant le schéma privé n'est pas inclus dans ce dépôt.
 
-Dans SQL Developer, connecté avec le même utilisateur applicatif que Qt :
-1. Exécute `gestionvehicule_integration.sql` avec F5 pour compléter les champs Employés et le planning attendus par cette intégration.
-2. Exécute `integ1/database/migrate_equipements_oracle.sql` avec F5. Le script vérifie la table `EQUIPEMENTS`, ajoute uniquement les colonnes manquantes et préserve les lignes existantes.
-3. Relance l'application avec le service Oracle/PDB dans lequel se trouve le schéma.
+Dans SQL Developer, connecte-toi comme `SAFESTATION` sur la même base/PDB que Qt, ouvre `SafeStation_Integrated_DB_Setup.sql`, puis lance tout le fichier avec F5. Ce script vérifie le schéma de base, complète les champs employés/planning, et met à niveau Équipements/Véhicules si des colonnes manquent. Il préserve les tables et les lignes déjà présentes.
+
+Relance ensuite l'application avec le même service Oracle/PDB.
 
 Ne lance pas un script de création complète d'une base déjà existante. Garde une copie privée de l'export SQL et ne le commit pas.
