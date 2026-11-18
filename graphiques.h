@@ -49,4 +49,38 @@ private:
     QVector<DonneeGraphique> m_donnees;
 };
 
+// Une étape de l'itinéraire (un « arrêt » du parcours)
+struct EtapeItineraire {
+    int     ordre;          // 1, 2, 3...
+    int     idIntervention;
+    QString titre;          // type d'intervention
+    QString adresse;
+    QString zone;
+    QString gravite;
+    QColor  couleur;        // couleur de la gravité
+    QString arrivee;        // heure d'arrivée prévue
+    QString fin;            // heure de fin prévue
+    int     trajetMin;      // trajet depuis l'étape précédente (ou la caserne)
+    int     surPlaceMin;
+    bool    retard;
+    QString texteRetard;    // « à l'heure » / « +12 min de retard »
+};
+
+// Itinéraire vertical façon Google Maps : départ, puis des repères reliés par un trait avec la durée
+// de chaque trajet ; chaque arrêt est une épingle numérotée colorée selon la gravité.
+class ItineraireWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit ItineraireWidget(QWidget *parent = nullptr);
+    void definir(const QVector<EtapeItineraire> &etapes, const QString &depart, const QString &fin);
+
+protected:
+    void paintEvent(QPaintEvent *) override;
+
+private:
+    QVector<EtapeItineraire> m_etapes;
+    QString m_depart, m_fin;
+};
+
 #endif // GRAPHIQUES_H

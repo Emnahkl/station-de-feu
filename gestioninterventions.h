@@ -8,12 +8,16 @@
 #include "affectation.h"
 #include "intervention.h"
 
+class QCheckBox;
 class QComboBox;
 class QDateEdit;
 class QLabel;
 class QLineEdit;
+class QPushButton;
+class QTableWidget;
 class QTimeEdit;
 class QTimer;
+class ItineraireWidget;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class GestionInterventions; }
@@ -34,11 +38,13 @@ class GestionInterventions : public QWidget
 public:
     explicit GestionInterventions(QWidget *parent = nullptr);
     ~GestionInterventions();
+    void marquerMenu();
 
-    void marquerMenu();             // remet « Interventions » en surbrillance dans le menu lateral
+public slots:
+    void setSearch(const QString &text);
 
 signals:
-    void ouvrirEmployes();          // clic sur « Employés » du menu lateral (integration)
+    void ouvrirEmployes();
 
 private slots:
     void rafraichir();              // recharge le tableau depuis Oracle (filtres + recherche + tri)
@@ -59,6 +65,7 @@ private slots:
     void afficherParcours();        // bascule tableau <-> parcours recommandé
     void afficherAffectation();     // propose l'affectation de l'intervention sélectionnée
     void validerAffectation();      // enregistre la proposition affichée
+    void afficherRessources();      // bascule tableau <-> ressources disponibles
     void fonctionnaliteAVenir();
 
 private:
@@ -87,6 +94,8 @@ private:
     void mettreAJourStats(const QVector<Intervention> &toutes);
     void mettreAJourBoutonsTri();
     int  mettreAJourParcours();     // construit le parcours ; renvoie le nombre d'étapes
+    void creerRessources();         // bouton + page « Ressources disponibles » (créés par le code)
+    void remplirRessources();       // recharge la page depuis Oracle
 
     // Édition dans le tableau
     void demarrerEdition(Mode mode, const Intervention &modele);
@@ -119,6 +128,13 @@ private:
     quint32 m_touches;              // champs que l'utilisateur a déjà modifiés (erreurs affichées)
     LigneEdition m_ed;
     QTimer *m_timerMessage;
+    // Page « Ressources disponibles » (index 4 du QStackedWidget)
+    QPushButton *m_btnRessources = nullptr;
+    QWidget *m_pageRessources = nullptr;
+    QTableWidget *m_tableRessources = nullptr;
+    QLabel *m_lblRessourcesResume = nullptr;
+    QCheckBox *m_chkLibres = nullptr;
+    ItineraireWidget *m_itineraire = nullptr;     // frise du parcours (créé au premier affichage)
 };
 
 #endif // GESTIONINTERVENTIONS_H

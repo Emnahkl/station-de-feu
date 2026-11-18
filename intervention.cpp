@@ -153,15 +153,13 @@ QString Intervention::erreurAdresse(const QString &adresse)
     return QString();
 }
 
-// Date/heure : pas dans le futur, pas avant 2026.
+// Date/heure : pas avant 2026 (le futur est autorisé : statut « En cours »).
 QString Intervention::erreurDateHeure(const QDate &date, const QTime &heure)
 {
     if (!date.isValid() || !heure.isValid())
         return QObject::tr("Date ou heure invalide.");
     if (date < dateMinimale())
         return QObject::tr("La date doit être à partir du %1.").arg(dateMinimale().toString("dd/MM/yyyy"));
-    if (QDateTime(date, heure) > QDateTime::currentDateTime())
-        return QObject::tr("La date et l'heure ne peuvent pas être dans le futur.");
     return QString();
 }
 
@@ -194,6 +192,8 @@ QStringList Intervention::erreurs() const
     if (!e5.isEmpty()) l << e5;
     if (e3.isEmpty() && e5.isEmpty() && estPassee(m_date) && m_statut != "Terminée")
         l << QObject::tr("Une intervention dont la date est passée doit avoir le statut « Terminée ».");
+    if (e3.isEmpty() && e5.isEmpty() && estFuture(m_date) && m_statut != "En cours")
+        l << QObject::tr("Une intervention dont la date est dans le futur doit avoir le statut « En cours ».");
     if (m_idZone <= 0) l << QObject::tr("Choisissez une zone.");
     return l;
 }
@@ -251,6 +251,14 @@ bool Intervention::ajouter()
 }
 
 // ---------------------------------------------------------------- UPDATE
+bool Intervention::demarrerSiEnAttente(int id)
+{
+    QSqlQuery q;
+    q.prepare("UPDATE INTERVENTIONS SET STATUT = 'En cours' WHERE ID_INTERVENTION = :id AND STATUT = 'En attente'");
+    q.bindValue(":id", id);
+    return executer(q);
+}
+
 bool Intervention::modifier()
 {
     const QStringList err = erreurs();
@@ -369,7 +377,19 @@ QVector<QPair<int, QString> > Intervention::zones()
     return liste;
 }
 
-// Temps moyen d'intervention de chaque zone (colonne TEMPS_INTERVENTION, 10 min si non renseigné)
+// Durée moyenne d'intervention par zone dans le schéma partagé.
+QMap<int, QString> Intervention::risquesZones()
+{
+    QMap<int, QString> risques;
+    QSqlQuery q;
+    q.prepare("SELECT ID_ZONE, NIVEAU_RISQUE FROM ZONE_COUVERTURE");
+    if (!executer(q))
+        return risques;
+    while (q.next())
+        risques.insert(q.value(0).toInt(), q.value(1).toString());
+    return risques;
+}
+
 QMap<int, int> Intervention::tempsZones()
 {
     QMap<int, int> temps;

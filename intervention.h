@@ -10,7 +10,7 @@
 #include <QTime>
 #include <QVector>
 
-// Entité « Intervention » (table INTERVENTIONS) avec ses CRUDs.
+// Entité « Intervention » (table partagée INTERVENTIONS) avec ses CRUDs.
 class Intervention
 {
 public:
@@ -54,6 +54,8 @@ public:
     static QString erreurStatut(const QString &statut);
     // Une intervention dont le jour est passé est forcément terminée
     static bool estPassee(const QDate &date) { return date < QDate::currentDate(); }
+    // Une intervention dont le jour est à venir est classée « En cours »
+    static bool estFuture(const QDate &date) { return date > QDate::currentDate(); }
     // Met à « Terminée » (en base) toutes les interventions dont la date est dépassée
     static bool cloturerPassees();
     QStringList erreurs() const;             // toutes les erreurs de l'objet (vide = valide)
@@ -64,6 +66,8 @@ public:
     bool ajouter();                          // Create
     bool modifier();                         // Update (selon getId())
     static bool supprimer(int id);           // Delete
+    // « En attente » -> « En cours » (appelé quand une affectation est validée) ; sans effet sinon
+    static bool demarrerSiEnAttente(int id);
     // Read : liste filtrée (gravité / statut / texte de recherche), vide = pas de filtre
     static QVector<Intervention> afficher(const QString &gravite = QString(),
                                           const QString &statut = QString(),
@@ -73,6 +77,8 @@ public:
     static QVector<QPair<int, QString> > zones();
     // Temps d'intervention (minutes) de chaque zone : paires (id zone -> minutes), utilisé par le parcours
     static QMap<int, int> tempsZones();
+    // Niveau de risque de chaque zone (NIVEAU_RISQUE : Faible / Moyen / Eleve) : paires (id zone -> libellé)
+    static QMap<int, QString> risquesZones();
 
     // Dernier message d'erreur Oracle (pour l'afficher à l'utilisateur)
     static QString derniereErreur();
