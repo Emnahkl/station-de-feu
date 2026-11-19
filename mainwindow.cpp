@@ -251,11 +251,12 @@ int VehicleWindow::indexForRegistration(const QString &immatriculation) const
 bool VehicleWindow::isMaintenanceDue(const QJsonObject &v) const
 {
     const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
-    const bool dateDue = date.isValid() && date.daysTo(QDate::currentDate()) >= 365;
+    // Alerte préventive 30 jours avant l'échéance annuelle.
+    const bool dateDue = date.isValid() && date.addMonths(11) <= QDate::currentDate();
     const int currentKm = v.value("mileage").toInt();
     const int serviceKm = v.value("maintenanceMileage").toInt(-1);
     const bool mileageDue = serviceKm >= 0 && currentKm >= serviceKm
-        && currentKm - serviceKm >= 10000;
+        && currentKm - serviceKm >= 9000; // alerte 1 000 km avant le seuil de 10 000 km
     return dateDue || mileageDue;
 }
 
@@ -452,12 +453,19 @@ void VehicleWindow::showMaintenanceAlerts()
         if (isMaintenanceDue(v)) {
             QString reason;
             const QDate date = QDate::fromString(v.value("maintenanceDate").toString(), Qt::ISODate);
-            if (date.isValid() && date.daysTo(QDate::currentDate()) >= 365)
-                reason = "date de maintenance dépassée (12 mois ou plus)";
+            if (date.isValid() && date.addMonths(11) <= QDate::currentDate()) {
+                const int days = date.daysTo(QDate::currentDate());
+                reason = days >= 365 ? "maintenance annuelle dépassée de " + QString::number(days - 365) + " jour(s)"
+                                     : "maintenance annuelle à prévoir dans " + QString::number(365 - days) + " jour(s)";
+            }
             const int kmSince = v.value("mileage").toInt() - serviceKm;
-            if (serviceKm >= 0 && kmSince >= 10000)
+            if (serviceKm >= 0 && kmSince >= 9000) {
+                const QString kmReason = kmSince >= 10000
+                    ? QString("seuil dépassé de %1 km").arg(kmSince - 10000)
+                    : QString("maintenance à prévoir dans environ %1 km").arg(10000 - kmSince);
                 reason += (reason.isEmpty() ? "" : " et ")
-                    + QString("seuil kilométrique atteint (%1 km depuis la maintenance)").arg(kmSince);
+                    + QString("%1 (%2 km depuis la maintenance)").arg(kmReason).arg(kmSince);
+            }
             if (reason.isEmpty()) reason = "échéance de maintenance atteinte";
             alerts << QString("• %1 — %2 : %3").arg(v.value("registration").toString(), v.value("model").toString(), reason);
         } else if (serviceKm < 0 && v.value("mileage").toInt() >= 10000) {
@@ -582,37 +590,71 @@ void VehicleWindow::showStatistics()
 
 void VehicleWindow::recommendVehicle()
 {
-    QStringList choices = {"Tous les types"};
-    choices.append(vehicleTypes);
-    bool accepted = false;
-    const QString type = QInputDialog::getItem(this, "Recommander un véhicule", "Type souhaité :", choices, 0, false, &accepted);
-    if (!accepted) return;
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("Recommandation pour une intervention"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *typeLabel = new QLabel(QStringLiteral("Type d’intervention :"), &dialog);
+    auto *interventionType = new QComboBox(&dialog);
+    interventionType->addItems({QStringLiteral("Incendie"), QStringLiteral("Accident de la route"),
+                                 QStringLiteral("Secours à personne"), QStringLiteral("Fuite de gaz"),
+                                 QStringLiteral("Inondation"), QStringLiteral("Autre / polyvalent")});
+    auto *gravityLabel = new QLabel(QStringLiteral("Gravité :"), &dialog);
+    auto *gravity = new QComboBox(&dialog);
+    gravity->addItems({QStringLiteral("Faible"), QStringLiteral("Moyenne"),
+                       QStringLiteral("Élevée"), QStringLiteral("Critique")});
+    layout->addWidget(typeLabel);
+    layout->addWidget(interventionType);
+    layout->addWidget(gravityLabel);
+    layout->addWidget(gravity);
+    auto *recommend = new QPushButton(QStringLiteral("Recommander"), &dialog);
+    recommend->setDefault(true);
+    layout->addWidget(recommend);
+    connect(recommend, &QPushButton::clicked, &dialog, &QDialog::accept);
+    if (dialog.exec() != QDialog::Accepted) return;
+
+    const QString mission = interventionType->currentText();
+    const QString severity = gravity->currentText();
+    QStringList preferredTypes;
+    if (mission == "Incendie") preferredTypes = {"Camion-citerne", "Camion", "Échelle", "Véhicule de secours"};
+    else if (mission == "Accident de la route") preferredTypes = {"Ambulance", "Véhicule de secours", "Camion"};
+    else if (mission == "Secours à personne") preferredTypes = {"Ambulance", "Véhicule de secours"};
+    else if (mission == "Fuite de gaz") preferredTypes = {"Véhicule de secours", "Camion", "Camion-citerne"};
+    else if (mission == "Inondation") preferredTypes = {"Camion", "Camion-citerne", "Véhicule de secours"};
+    else preferredTypes = vehicleTypes;
+
     QList<QJsonObject> candidates;
     for (const QJsonValue &value : vehicles) {
         const QJsonObject v = value.toObject();
         if (v.value("status").toString() != "Disponible") continue;
-        if (type != "Tous les types" && v.value("type").toString() != type) continue;
+        if (isMaintenanceDue(v)) continue;
+        if (!preferredTypes.contains(v.value("type").toString())) continue;
         candidates.append(v);
     }
-    std::sort(candidates.begin(), candidates.end(), [this](const QJsonObject &a, const QJsonObject &b) {
-        if (isMaintenanceDue(a) != isMaintenanceDue(b)) return !isMaintenanceDue(a);
-        const int aServiceKm = a.value("maintenanceMileage").toInt(-1);
-        const int bServiceKm = b.value("maintenanceMileage").toInt(-1);
-        if (aServiceKm >= 0 && bServiceKm >= 0) {
-            const int aKmSince = a.value("mileage").toInt() - aServiceKm;
-            const int bKmSince = b.value("mileage").toInt() - bServiceKm;
-            if (aKmSince != bKmSince) return aKmSince < bKmSince;
+    const auto score = [&preferredTypes, &severity, &mission](const QJsonObject &v) {
+        int result = preferredTypes.indexOf(v.value("type").toString()) * 100;
+        const int currentKm = v.value("mileage").toInt();
+        const int serviceKm = v.value("maintenanceMileage").toInt(-1);
+        if (serviceKm >= 0) result += qMax(0, currentKm - serviceKm) / 100;
+        else result += 30; // historique de maintenance incomplet
+        if (severity == "Critique" || severity == "Élevée") {
+            if (v.value("type").toString() == "Véhicule de secours") result -= 15;
+            if (v.value("type").toString() == "Ambulance" && mission != "Incendie") result -= 10;
         }
-        return a.value("mileage").toInt() < b.value("mileage").toInt();
+        return result;
+    };
+    std::sort(candidates.begin(), candidates.end(), [&score](const QJsonObject &a, const QJsonObject &b) {
+        return score(a) < score(b);
     });
     if (candidates.isEmpty()) {
-        QMessageBox::information(this, "Aucune recommandation", "Aucun véhicule disponible ne correspond au type demandé.");
+        QMessageBox::information(this, QStringLiteral("Aucune recommandation"),
+            QStringLiteral("Aucun véhicule adapté n’est à la fois disponible et à jour de maintenance pour cette mission."));
         return;
     }
     const QJsonObject v = candidates.first();
-    QMessageBox::information(this, "Véhicule recommandé",
-        QString("%1 — %2\nType : %3\nKilométrage : %4 km\n\nChoisi parmi les véhicules disponibles, en privilégiant l’absence d’alerte de maintenance et le kilométrage le plus faible.")
-            .arg(v.value("registration").toString(), v.value("model").toString(), v.value("type").toString())
+    QMessageBox::information(this, QStringLiteral("Véhicule recommandé"),
+        QStringLiteral("Mission : %1 (%2)\n\n%3 — %4\nType : %5\nÉtat : %6\nKilométrage : %7 km\n\nSélectionné selon l’adéquation au type de mission, la disponibilité, l’état et la charge kilométrique depuis la maintenance.")
+            .arg(mission, severity, v.value("registration").toString(), v.value("model").toString(),
+                 v.value("type").toString(), v.value("status").toString())
             .arg(v.value("mileage").toInt()));
 }
 
