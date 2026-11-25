@@ -10,6 +10,7 @@ SOURCES += \
     equipmentwindow.cpp \
     gestioninterventions.cpp \
     connexion.cpp \
+    vehicule.cpp \
     equipement.cpp \
     equipementmodel.cpp \
     exports.cpp
@@ -20,6 +21,7 @@ HEADERS += \
     equipmentwindow.h \
     gestioninterventions.h \
     connexion.h \
+    vehicule.h \
     equipement.h \
     equipementmodel.h \
     exports.h

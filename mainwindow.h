@@ -18,23 +18,26 @@ public:
 
 private:
     void loadVehicles();
-    void saveVehicles() const;
     void refreshTable();
     void refreshDashboard();
+    void updateNotificationCenter();
     void resetForm();
-    void editVehicle(int id);
-    void deleteVehicle(int id);
+    void editVehicle(const QString &immatriculation);
+    void deleteVehicle(const QString &immatriculation);
     void saveVehicle();
     void showMaintenanceAlerts();
+    void showVehicleCalendar();
     void showStatistics();
     void recommendVehicle();
     void exportCsv();
     void exportPdf();
-    int indexForId(int id) const;
+    int indexForRegistration(const QString &immatriculation) const;
     bool isMaintenanceDue(const QJsonObject &vehicle) const;
+    bool hasMaintenanceAlert(const QJsonObject &vehicle) const;
 
     Ui::MainWindow *ui;
     QJsonArray vehicles;
+    QString lastNotificationSignature;
 };
 
 #endif // MAINWINDOW_H

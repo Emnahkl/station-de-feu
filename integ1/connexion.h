@@ -7,7 +7,7 @@ class QWidget;
 class Connexion
 {
 public:
-    static bool ouvrir(QWidget *parent = nullptr);
+    static bool ouvrir(QWidget *parent = nullptr, bool oracleOnly = false);
 };
 
 #endif // CONNEXION_H

@@ -49,9 +49,48 @@ bool ensureEquipmentTable(QSqlDatabase &db, bool oracle)
         "SELECT SEQ_EQUIPEMENT.NEXTVAL INTO :NEW.ID FROM DUAL; END;");
 }
 
+bool ensureVehicleEventsTable(QSqlDatabase &db, QString *error)
+{
+    QSqlQuery query(db);
+    if (!query.exec("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME='VEHICULE_EVENEMENTS'")) {
+        if (error) *error = query.lastError().text();
+        return false;
+    }
+    if (!query.next()) {
+        if (error) *error = query.lastError().text();
+        return false;
+    }
+    if (query.value(0).toInt() != 0)
+        return true;
+    query.finish();
+    if (!query.exec(
+        "CREATE TABLE VEHICULE_EVENEMENTS ("
+        " ID_EVENEMENT NUMBER PRIMARY KEY,"
+        " IMMATRICULATION VARCHAR2(20) NOT NULL,"
+        " TYPE_EVENEMENT VARCHAR2(40) NOT NULL,"
+        " DATE_EVENEMENT DATE DEFAULT SYSDATE NOT NULL,"
+        " DETAILS VARCHAR2(500))")) {
+        if (error) *error = query.lastError().text();
+        return false;
+    }
+    if (!query.exec("CREATE SEQUENCE SEQ_VEHICULE_EVENEMENTS START WITH 1 INCREMENT BY 1 NOCACHE")) {
+        if (error) *error = query.lastError().text();
+        return false;
+    }
+    if (!query.exec(
+        "CREATE OR REPLACE TRIGGER TRG_VEH_EVENEMENT_BI "
+        "BEFORE INSERT ON VEHICULE_EVENEMENTS FOR EACH ROW "
+        "WHEN (NEW.ID_EVENEMENT IS NULL) BEGIN "
+        "SELECT SEQ_VEHICULE_EVENEMENTS.NEXTVAL INTO :NEW.ID_EVENEMENT FROM DUAL; END;")) {
+        if (error) *error = query.lastError().text();
+        return false;
+    }
+    return true;
 }
 
-bool Connexion::ouvrir(QWidget *parent)
+}
+
+bool Connexion::ouvrir(QWidget *parent, bool oracleOnly)
 {
     QSettings settings;
     QDialog dialog(parent);
@@ -62,7 +101,8 @@ bool Connexion::ouvrir(QWidget *parent)
     auto *mode = new QComboBox(&dialog);
     mode->addItem("SQLite — démonstration locale");
     mode->addItem("Oracle — via pilote ODBC");
-    mode->setCurrentIndex(settings.value("database/mode", 0).toInt());
+    mode->setCurrentIndex(oracleOnly ? 1 : settings.value("database/mode", 1).toInt());
+    mode->setEnabled(!oracleOnly);
     QString savedDriver = settings.value("oracle/driver", "Oracle in XE").toString();
     QString savedService = settings.value("oracle/service", "XE").toString();
     if (savedDriver == "Oracle in OraDB26Home1") savedDriver = "Oracle in XE";
@@ -101,6 +141,18 @@ bool Connexion::ouvrir(QWidget *parent)
         return false;
 
     const bool oracle = mode->currentIndex() == 1;
+    const QString requiredDriver = oracle ? QStringLiteral("QODBC")
+                                          : QStringLiteral("QSQLITE");
+    if (!QSqlDatabase::drivers().contains(requiredDriver)) {
+        QMessageBox::critical(
+            parent,
+            QStringLiteral("Pilote Qt manquant"),
+            QStringLiteral("Le pilote SQL %1 n'est pas disponible dans cette installation de Qt. "
+                           "Installez le composant Qt SQL correspondant au kit utilisé "
+                           "(Qt 6.7.3 MinGW 64-bit), puis relancez l'application.")
+                .arg(requiredDriver));
+        return false;
+    }
     settings.setValue("database/mode", mode->currentIndex());
     QSqlDatabase db;
     if (QSqlDatabase::contains(connectionName)) {
@@ -142,8 +194,24 @@ bool Connexion::ouvrir(QWidget *parent)
             db.close();
             return false;
         }
+        QSqlQuery schema(db);
+        if (!schema.exec("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME IN ('ZONE_COUVERTURE','EMPLOYES','VEHICULES','EQUIPEMENTS','CAMPAGNES_SENSIBILISATION','INTERVENTIONS','PARTICIPER_UTILISER','NECESSITER','ANIMER')")
+            || !schema.next() || schema.value(0).toInt() != 9) {
+            QMessageBox::critical(parent, "Schéma Oracle manquant",
+                "Le schéma commun n’est pas installé dans cet utilisateur Oracle. "
+                "Dans SQL Developer, exécutez integ1/database/oracle_schema.sql (F5), puis relancez l’application.");
+            db.close();
+            return false;
+        }
+        QString historyError;
+        if (!ensureVehicleEventsTable(db, &historyError)) {
+            QMessageBox::critical(parent, "Historique des véhicules",
+                "Impossible de préparer le calendrier des événements : " + historyError);
+            db.close();
+            return false;
+        }
     }
-    if (!ensureEquipmentTable(db, oracle)) {
+    if (!oracle && !ensureEquipmentTable(db, false)) {
         QMessageBox::critical(parent, "Base de données", db.lastError().text());
         db.close();
         return false;
